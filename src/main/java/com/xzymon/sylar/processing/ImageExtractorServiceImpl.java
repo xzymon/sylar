@@ -1,6 +1,9 @@
 package com.xzymon.sylar.processing;
 
-import com.xzymon.sylar.json.ExtractedData;
+import com.xzymon.sylar.helper.Helper;
+import com.xzymon.sylar.model.FrameCoords;
+import com.xzymon.sylar.model.RawDataContainer;
+import com.xzymon.sylar.model.TextPixelArea;
 import io.nayuki.png.PngImage;
 import io.nayuki.png.image.BufferedPaletteImage;
 import io.nayuki.png.ImageDecoder;
@@ -9,13 +12,12 @@ import java.io.File;
 import java.io.IOException;
 
 public class ImageExtractorServiceImpl {
-	private static final int CLEAR_VALUE = 0;
 
 	//private final String dataImageFilePath = "/home/coder/Images/solana-test.png";
 	//private final String dataImageFilePath = "/home/coder/Downloads/stooq/SOL.V_y.png";
 	private final String dataImageFilePath = "/home/coder/Downloads/stooq/YALL_US.png";
 	//private final String dataImageFilePath = "/home/coder/Downloads/stooq/INJ.V/ln_20240320.png";
-	private final ExtractedData extractedData = new ExtractedData();
+	private final RawDataContainer rawDataContainer = new RawDataContainer();
 
 	public void start() throws IOException {
 		PngImage png = PngImage.read(new File(dataImageFilePath));
@@ -42,7 +44,7 @@ public class ImageExtractorServiceImpl {
 
 		extractSymbolFromPixelArea(areaXStart, areaYStart, buffPalImg);
 
-		extractedData.extractData(buffPalImg);
+		//rawDataContainer.extractData(buffPalImg);
 	}
 
 	private void extractSymbolFromPixelArea(int areaXStart, int areaYStart, BufferedPaletteImage buffPalImg) {
@@ -52,70 +54,20 @@ public class ImageExtractorServiceImpl {
 		int areaXLength = areaXEnd - areaXStart + 1;
 		int areaYLength = areaYEnd - areaYStart + 1;
 
-		int[][] imageArea = extractImageArea(buffPalImg, areaXStart, areaYStart, areaXEnd, areaYEnd);
-		printImageArea(imageArea, areaXLength, areaYLength);
-		flattenImageAreaTo1dArray(imageArea, areaXLength, areaYLength);
+		int[][] imageArea = Helper.extractImageArea(buffPalImg, areaXStart, areaYStart, areaXEnd, areaYEnd);
+		Helper.printImageArea(imageArea, areaXLength, areaYLength, Helper.CLEAR_VALUE);
+		Helper.flattenImageAreaTo1dArray(imageArea, areaXLength, areaYLength);
 	}
 
-	private int[][] extractImageArea(BufferedPaletteImage img, int x0, int y0, int x1, int y1) {
-		// normalizacja obszaru
-		int xStart = x0 < x1 ? x0 : x1;
-		int xEnd = x0 < x1 ? x1 : x0;
-		int yStart = y0 < y1 ? y0 : y1;
-		int yEnd = y0 < y1 ? y1 : y0;
+	public static TextPixelArea exposeFromPixelArea(FrameCoords areaCoords, BufferedPaletteImage buffPalImg, int paletteColorToSense, int clearValue) {
+		FrameCoords imageFC = new FrameCoords(0, buffPalImg.getWidth()-1, buffPalImg.getHeight()-1, 0);
+		FrameCoords normalizedCoords = Helper.normalize(areaCoords);
+		FrameCoords intersectionCoords = Helper.intersection(imageFC, normalizedCoords);
 
-		int[][] result = new int[yEnd - yStart + 1][xEnd - xStart + 1];
-		for (int y = yStart; y <= yEnd; y++) {
-			for (int x = xStart; x <= xEnd; x++) {
-				result[y-yStart][x-xStart] = img.getPixel(x, y);
-			}
-		}
-		return result;
-	}
-
-	private int[] flattenImageAreaTo1dArray(int[][] imageArea, int xLength, int yLength) {
-		int[] result = new int[xLength * yLength];
-		StringBuilder sb = new StringBuilder();
-		StringBuilder sbPrettier = new StringBuilder();
-		for (int y = 0; y < yLength; y++) {
-			for (int x = 0; x < xLength; x++) {
-				int pixelPaletteValue = mapIntToIntForArray(imageArea[y][x], CLEAR_VALUE);
-				sb.append(pixelPaletteValue);
-				sbPrettier.append(pixelPaletteValue).append(',');
-				result[y*xLength+x] = pixelPaletteValue;
-			}
-		}
-		System.out.println(sb);
-		sbPrettier.deleteCharAt((sb.length()*2)-1);
-		System.out.format("int[] letter = {%1$s};", sbPrettier);
-		return result;
-	}
-
-	private void printImageArea(int[][] imageArea, int xLength, int yLength) {
-		StringBuilder sb;
-		for (int y = 0; y < yLength; y++) {
-			sb = new StringBuilder();
-			for (int x = 0; x < xLength; x++) {
-				sb.append(mapIntToCharForVisualization(imageArea[y][x], CLEAR_VALUE));
-			}
-			System.out.println(sb);
-		}
-		System.out.println();
-	}
-
-	private char mapIntToCharForVisualization(int value, int clearValue) {
-		if (value == clearValue) {
-			return ' ';
-		} else {
-			return '#';
-		}
-	}
-
-	private int mapIntToIntForArray(int value, int clearValue) {
-		if (value == clearValue) {
-			return 0;
-		} else {
-			return value;
-		}
+		int[][] imageArea = Helper.extractImageArea(buffPalImg, intersectionCoords);
+		int areaXLength = intersectionCoords.getRight() - intersectionCoords.getLeft() +1;
+		int areaYLength = intersectionCoords.getBottom() - intersectionCoords.getTop() +1;
+		Helper.printImageArea(imageArea, areaXLength, areaYLength, clearValue);
+		return new TextPixelArea(imageArea, areaXLength, areaYLength);
 	}
 }

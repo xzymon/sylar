@@ -1,4 +1,4 @@
-package com.xzymon.sylar.json;
+package com.xzymon.sylar.model;
 
 public class RawValueInBuckets {
 	private Integer referencePointOnAxis;

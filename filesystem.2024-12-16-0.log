@@ -1,0 +1,16 @@
+21:42:00.014 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- The time is now 21:42:00
+21:44:00.011 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- The time is now 21:44:00
+21:44:00.012 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- /home/coder/Downloads/stooq/in
+21:44:00.013 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- Property loading.directory.in problem. Should be Read-Write directory. Hint: directory does not exist.
+21:44:00.013 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- Property loading.directory.processed problem. Should be Read-Write directory. Hint: directory does not exist.
+21:56:00.017 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- The time is now 21:56:00
+21:56:00.020 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- /home/coder/Downloads/stooq/in
+21:56:00.021 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- file: ln_20241210.png
+21:56:00.021 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- Property loading.directory.processed problem. Should be Read-Write directory. Hint: directory does not exist.
+22:00:00.004 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- The time is now 22:00:00
+22:00:00.005 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- /home/coder/Downloads/stooq/in
+22:00:00.007 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- Property loading.directory.processed problem. Should be Read-Write directory. Hint: is not a directory.
+22:02:00.005 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- The time is now 22:02:00
+22:02:00.006 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- /home/coder/Downloads/stooq/in
+22:02:00.007 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- file: ln_20241210.png
+22:02:00.007 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- Property loading.directory.processed problem. Should be Read-Write directory. Hint: is not a directory.

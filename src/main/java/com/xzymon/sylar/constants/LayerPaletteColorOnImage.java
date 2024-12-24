@@ -1,6 +1,7 @@
 package com.xzymon.sylar.constants;
 
 public class LayerPaletteColorOnImage {
+	public static final int BACKGROUND = 0;
 	public static final int TEXT = 1;
 	public static final int FRAMES = 2;
 	public static final int GAUGES = 3;

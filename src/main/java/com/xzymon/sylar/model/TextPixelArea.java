@@ -1,4 +1,4 @@
-package com.xzymon.sylar.processing;
+package com.xzymon.sylar.model;
 
 public class TextPixelArea {
 	private int[][] pixelArea;
@@ -16,15 +16,19 @@ public class TextPixelArea {
 		return pixelArea;
 	}
 
-	public int getxLength() {
+	public int getXLength() {
 		return xLength;
 	}
 
-	public int getyLength() {
+	public int getYLength() {
 		return yLength;
 	}
 
 	public String getExtractedText() {
 		return extractedText;
+	}
+
+	public void setExtractedText(String extractedText) {
+		this.extractedText = extractedText;
 	}
 }

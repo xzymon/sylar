@@ -1,19 +1,33 @@
-package com.xzymon.sylar.json;
+package com.xzymon.sylar.model;
 
 public class FrameCoords {
 	public enum FrameLine {
-		LEFT,
-		RIGHT,
 		TOP,
-		BOTTOM
+		RIGHT,
+		BOTTOM,
+		LEFT
 	}
 
 	Integer top;
-	Integer left;
 	Integer right;
 	Integer bottom;
+	Integer left;
 
 	public FrameCoords() {
+	}
+
+	public FrameCoords(FrameCoords toCopy) {
+		this.top = toCopy.top;
+		this.right = toCopy.right;
+		this.bottom = toCopy.bottom;
+		this.left = toCopy.left;
+	}
+
+	public FrameCoords(Integer top, Integer right, Integer bottom, Integer left) {
+		this.top = top;
+		this.right = right;
+		this.bottom = bottom;
+		this.left = left;
 	}
 
 	public Integer getTop() {
