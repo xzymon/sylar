@@ -1,35 +1,45 @@
 package com.xzymon.sylar.model;
 
+import com.xzymon.sylar.constants.ChartType;
+
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 public class RawDataContainer {
-	private FrameCoords valuesFrame;                    //granice wykresu notowań
-	private FrameCoords volumeFrame;                    //granice wykresu obrotów
-	private List<RawValueInBuckets> valuesPerHorizontal;//notowania (liczone kubełkmi)
-	private List<RawValueInBuckets> volumePerHorizontal;//obroty (liczone kubełkami)
-	private List<VerticalLineBucket> valueVLBuckets;    //kubełki (odpowiadające liniom) dla notowań
-	private Integer dayOpeningBucket;                   //linia kubełka wartości otwarcia dnia
-	private Integer dayMaxBucket;                       //linia kubełka wartości max z dnia
-	private Integer dayMinBucket;                       //linia kubełka wartości min z dnia
-	private Integer dayClosingBucket;                   //linia kubełka wartości zamknięcia dnia
+	private FrameCoords valuesFrame;                     //granice wykresu notowań
+	private FrameCoords valueSeriesExtremalPoints;       //typ nie do końca pasuje, sama obecność tego jest dla celów optymalizacji
+	private FrameCoords volumeFrame;                     //granice wykresu obrotów
+	private FrameCoords volumeSeriesExtremalPoints;      // jak 2 pozycje wyżej
+	private List<RawValueInBuckets> valuesPerHorizontal; //notowania (liczone kubełkmi)
+	private List<RawValueInBuckets> volumePerHorizontal; //obroty (liczone kubełkami)
+	private List<VerticalLineBucket> valueVLBuckets;     //kubełki (odpowiadające liniom) dla notowań
+	private NipponCandle entireChartCandle;              //pojedyncza świeca reprezentująca cały wykres
 
-	private TextPixelArea valorNameArea;                //nazwa waloru - obszar obrazu do ekstrakcji tekstu
-	private TextPixelArea generatedDateTimeArea;        //data i czas publikacji danych wykresu w tej postaci - obszar obrazu do ekstrakcji tekstu
-	private Map<Integer, TextPixelArea> horizontalGauges;  //mapa dla prowadnic poziomych - obszar obrazu do ekstrakcji tekstu
-	private Map<Integer, TextPixelArea> verticalGauges;    //mapa dla prowadnic pionowych - obszar obrazu do ekstrakcji tekstu
-	private TextPixelArea intervalArea;                 //interval - obszar obrazu do ekstrakcji tekstu
+	private TextPixelArea valorNameArea;                 //nazwa waloru - obszar obrazu do ekstrakcji tekstu
+	private TextPixelArea generatedDateTimeArea;         //data i czas publikacji danych wykresu w tej postaci - obszar obrazu do ekstrakcji tekstu
+	private Map<Integer, TextPixelArea> horizontalGauges;//mapa dla prowadnic poziomych - obszar obrazu do ekstrakcji tekstu
+	private Map<Integer, TextPixelArea> verticalGauges;  //mapa dla prowadnic pionowych - obszar obrazu do ekstrakcji tekstu
+	private TextPixelArea intervalArea;                  //interval - obszar obrazu do ekstrakcji tekstu
+	private ChartType chartType;
+
+	private Map<Integer, BigDecimal> horizontalValuesMap;//mapowanie położenia na wykresie na wartość
+	private List<NipponCandle> candles;
 
 	public RawDataContainer() {
 		this.valuesFrame = new FrameCoords();
+		this.valueSeriesExtremalPoints = new FrameCoords();
 		this.volumeFrame = new FrameCoords();
+		this.volumeSeriesExtremalPoints = new FrameCoords();
 		this.valuesPerHorizontal = new ArrayList<>();
 		this.volumePerHorizontal = new ArrayList<>();
 		this.valueVLBuckets = new ArrayList<>();
 		this.horizontalGauges = new HashMap<>();
 		this.verticalGauges = new HashMap<>();
+		this.horizontalValuesMap = new HashMap<>();
+		this.candles = new ArrayList<>();
 	}
 
 	public FrameCoords getValuesFrame() {
@@ -38,6 +48,14 @@ public class RawDataContainer {
 
 	public void setValuesFrame(FrameCoords valuesFrame) {
 		this.valuesFrame = valuesFrame;
+	}
+
+	public FrameCoords getValueSeriesExtremalPoints() {
+		return valueSeriesExtremalPoints;
+	}
+
+	public void setValueSeriesExtremalPoints(FrameCoords valueSeriesExtremalPoints) {
+		this.valueSeriesExtremalPoints = valueSeriesExtremalPoints;
 	}
 
 	public FrameCoords getVolumeFrame() {
@@ -64,6 +82,14 @@ public class RawDataContainer {
 		this.volumePerHorizontal = volumePerHorizontal;
 	}
 
+	public FrameCoords getVolumeSeriesExtremalPoints() {
+		return volumeSeriesExtremalPoints;
+	}
+
+	public void setVolumeSeriesExtremalPoints(FrameCoords volumeSeriesExtremalPoints) {
+		this.volumeSeriesExtremalPoints = volumeSeriesExtremalPoints;
+	}
+
 	public List<VerticalLineBucket> getValueVLBuckets() {
 		return valueVLBuckets;
 	}
@@ -72,28 +98,12 @@ public class RawDataContainer {
 		this.valueVLBuckets = valueVLBuckets;
 	}
 
-	public Integer getDayOpeningBucket() {
-		return dayOpeningBucket;
+	public NipponCandle getEntireChartCandle() {
+		return entireChartCandle;
 	}
 
-	public void setDayOpeningBucket(Integer dayOpeningBucket) {
-		this.dayOpeningBucket = dayOpeningBucket;
-	}
-
-	public Integer getDayMaxBucket() {
-		return dayMaxBucket;
-	}
-
-	public void setDayMaxBucket(Integer dayMaxBucket) {
-		this.dayMaxBucket = dayMaxBucket;
-	}
-
-	public Integer getDayMinBucket() {
-		return dayMinBucket;
-	}
-
-	public void setDayMinBucket(Integer dayMinBucket) {
-		this.dayMinBucket = dayMinBucket;
+	public void setEntireChartCandle(NipponCandle entireChartCandle) {
+		this.entireChartCandle = entireChartCandle;
 	}
 
 	public TextPixelArea getValorNameArea() {
@@ -134,5 +144,29 @@ public class RawDataContainer {
 
 	public void setIntervalArea(TextPixelArea intervalArea) {
 		this.intervalArea = intervalArea;
+	}
+
+	public ChartType getChartType() {
+		return chartType;
+	}
+
+	public void setChartType(ChartType chartType) {
+		this.chartType = chartType;
+	}
+
+	public Map<Integer, BigDecimal> getHorizontalValuesMap() {
+		return horizontalValuesMap;
+	}
+
+	public void setHorizontalValuesMap(Map<Integer, BigDecimal> horizontalValuesMap) {
+		this.horizontalValuesMap = horizontalValuesMap;
+	}
+
+	public List<NipponCandle> getCandles() {
+		return candles;
+	}
+
+	public void setCandles(List<NipponCandle> candles) {
+		this.candles = candles;
 	}
 }

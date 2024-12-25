@@ -15,7 +15,7 @@ public class RawValueInBuckets {
 		this.max = max;
 	}
 
-	public Integer getHorizontal() {
+	public Integer getReferencePointOnAxis() {
 		return referencePointOnAxis;
 	}
 

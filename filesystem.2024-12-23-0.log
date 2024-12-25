@@ -1,5 +1,0 @@
-20:19:00.008 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- The time is now 20:19:00
-20:19:00.017 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- /home/coder/Downloads/stooq/in
-20:19:00.019 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- file: br_20241111.png
-20:19:00.019 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- file: ln_20241210.png
-20:19:00.019 [scheduling-1] INFO  c.x.sylar.scheduling.MainScheduler -- Property loading.directory.processed problem. Should be Read-Write directory. Hint: is not a directory.

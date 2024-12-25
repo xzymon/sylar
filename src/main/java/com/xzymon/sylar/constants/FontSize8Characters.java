@@ -217,10 +217,6 @@ public class FontSize8Characters {
 	public List<FontSize8Character> getNumbersColonCharsSorted() {
 		return numbersColonCharsSorted;
 	}
-/*
-	public String detectInArea(BufferedPaletteImage img, FrameCoords entireFC, List<FontSize8Character> knownChars) {
-
-	}*/
 
 	private List<FontSize8Character> convertMapToTypedList(Map<Character, int[]> map) {
 		return map.entrySet().stream()
