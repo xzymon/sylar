@@ -1,5 +1,7 @@
 package com.xzymon.sylar.scheduling;
 
+import com.xzymon.sylar.constants.ChartType;
+import com.xzymon.sylar.model.NipponCandleInterpretation;
 import com.xzymon.sylar.processing.StockPngPaletteImageProcessor;
 import com.xzymon.sylar.model.RawDataContainer;
 import io.nayuki.png.ImageDecoder;
@@ -20,6 +22,7 @@ import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
@@ -72,6 +75,13 @@ public class MainScheduler {
 		BufferedPaletteImage buffPalImg = (BufferedPaletteImage) ImageDecoder.toImage(png);
 		StockPngPaletteImageProcessor stockImageProcessor = new StockPngPaletteImageProcessor();
 		RawDataContainer container = stockImageProcessor.process(buffPalImg);
+		Map<Integer, NipponCandleInterpretation> candleInterpretations;
+		if (ChartType.BAR.equals(container.getChartType())) {
+			//convert candle values to resulting time and value
+			candleInterpretations = StockPngPaletteImageProcessor.candlesConverter2(container);
+			candleInterpretations.forEach((k,v) -> LOGGER.info(String.format("%1$d -> %2$s", k, v.toCsvRow())));
+		}
+
 		Path processedPath = Paths.get(loadingDirectoryProcessed);
 		Files.move(path, processedPath);
 	}

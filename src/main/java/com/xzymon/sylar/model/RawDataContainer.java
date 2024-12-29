@@ -16,6 +16,7 @@ public class RawDataContainer {
 	private List<RawValueInBuckets> valuesPerHorizontal; //notowania (liczone kubełkmi)
 	private List<RawValueInBuckets> volumePerHorizontal; //obroty (liczone kubełkami)
 	private List<VerticalLineBucket> valueVLBuckets;     //kubełki (odpowiadające liniom) dla notowań
+	private Integer previousDayClose = null;             //zamknięcie poprzedniego dnia - czerwona linia na wykresie
 	private NipponCandle entireChartCandle;              //pojedyncza świeca reprezentująca cały wykres
 
 	private TextPixelArea valorNameArea;                 //nazwa waloru - obszar obrazu do ekstrakcji tekstu
@@ -160,6 +161,14 @@ public class RawDataContainer {
 
 	public void setHorizontalValuesMap(Map<Integer, BigDecimal> horizontalValuesMap) {
 		this.horizontalValuesMap = horizontalValuesMap;
+	}
+
+	public int getPreviousDayClose() {
+		return previousDayClose;
+	}
+
+	public void setPreviousDayClose(int previousDayClose) {
+		this.previousDayClose = previousDayClose;
 	}
 
 	public List<NipponCandle> getCandles() {
