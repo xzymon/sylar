@@ -1,71 +1,77 @@
 package com.xzymon.sylar.model;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.math.BigDecimal;
 
 public class NipponCandle {
-	private int datetimeMarker;
-	private int open;
-	private int high;
-	private int low;
-	private int close;
+	private String dateString;
+	private String timeString;
+	private BigDecimal open;
+	private BigDecimal high;
+	private BigDecimal low;
+	private BigDecimal close;
 
 	public NipponCandle() {
-
 	}
 
-	public NipponCandle(int datetimeMarker, int open, int high, int low, int close) {
-		this.datetimeMarker = datetimeMarker;
-		this.open = open;
-		this.high = high;
-		this.low = low;
-		this.close = close;
+	public NipponCandle(String dateString, String timeString, BigDecimal open, BigDecimal high, BigDecimal low, BigDecimal close) {
+		super();
+		this.dateString = dateString;
+		this.timeString = timeString;
 	}
 
-	public int getDatetimeMarker() {
-		return datetimeMarker;
+	public String getDateString() {
+		return dateString;
 	}
 
-	public void setDatetimeMarker(int datetimeMarker) {
-		this.datetimeMarker = datetimeMarker;
+	public void setDateString(String dateString) {
+		this.dateString = dateString;
 	}
 
-	public int getOpen() {
+	public String getTimeString() {
+		return timeString;
+	}
+
+	public void setTimeString(String timeString) {
+		this.timeString = timeString;
+	}
+
+	public BigDecimal getOpen() {
 		return open;
 	}
 
-	public void setOpen(int open) {
+	public void setOpen(BigDecimal open) {
 		this.open = open;
 	}
 
-	public int getHigh() {
+	public BigDecimal getHigh() {
 		return high;
 	}
 
-	public void setHigh(int high) {
+	public void setHigh(BigDecimal high) {
 		this.high = high;
 	}
 
-	public int getLow() {
+	public BigDecimal getLow() {
 		return low;
 	}
 
-	public void setLow(int low) {
+	public void setLow(BigDecimal low) {
 		this.low = low;
 	}
 
-	public int getClose() {
+	public BigDecimal getClose() {
 		return close;
 	}
 
-	public void setClose(int close) {
+	public void setClose(BigDecimal close) {
 		this.close = close;
 	}
 
 	@Override
 	public String toString() {
-		return "NipponCandle{" +
-				       "datetimeMarker=" + datetimeMarker +
+		return "NipponCandleInterpretation{" +
+				       "dateString='" + dateString + '\'' +
+				       ", timeString='" + timeString + '\'' +
 				       ", open=" + open +
 				       ", high=" + high +
 				       ", low=" + low +
@@ -73,27 +79,7 @@ public class NipponCandle {
 				       '}';
 	}
 
-	public static class BuildingBlock {
-		private List<RawValueInBuckets> rawValues = new ArrayList<>();
-		private int datetimeMarker;
-
-		public BuildingBlock() {
-		}
-
-		public List<RawValueInBuckets> getRawValues() {
-			return rawValues;
-		}
-
-		public void setRawValues(List<RawValueInBuckets> rawValues) {
-			this.rawValues = rawValues;
-		}
-
-		public int getDatetimeMarker() {
-			return datetimeMarker;
-		}
-
-		public void setDatetimeMarker(int datetimeMarker) {
-			this.datetimeMarker = datetimeMarker;
-		}
+	public String toCsvRow() {
+		return String.format("%1$s,%2$s,%3$s,%4$s,%5$s,%6$s", dateString, timeString, open, high, low, close);
 	}
 }

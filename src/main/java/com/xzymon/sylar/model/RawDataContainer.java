@@ -17,7 +17,7 @@ public class RawDataContainer {
 	private List<RawValueInBuckets> volumePerHorizontal; //obroty (liczone kubełkami)
 	private List<VerticalLineBucket> valueVLBuckets;     //kubełki (odpowiadające liniom) dla notowań
 	private Integer previousDayClose = null;             //zamknięcie poprzedniego dnia - czerwona linia na wykresie
-	private NipponCandle entireChartCandle;              //pojedyncza świeca reprezentująca cały wykres
+	private RawDataNipponCandle entireChartCandle;              //pojedyncza świeca reprezentująca cały wykres
 
 	private TextPixelArea valorNameArea;                 //nazwa waloru - obszar obrazu do ekstrakcji tekstu
 	private TextPixelArea generatedDateTimeArea;         //data i czas publikacji danych wykresu w tej postaci - obszar obrazu do ekstrakcji tekstu
@@ -27,7 +27,7 @@ public class RawDataContainer {
 	private ChartType chartType;
 
 	private Map<Integer, BigDecimal> horizontalValuesMap;//mapowanie położenia na wykresie na wartość
-	private List<NipponCandle> candles;
+	private List<RawDataNipponCandle> candles;
 
 	public RawDataContainer() {
 		this.valuesFrame = new FrameCoords();
@@ -99,11 +99,11 @@ public class RawDataContainer {
 		this.valueVLBuckets = valueVLBuckets;
 	}
 
-	public NipponCandle getEntireChartCandle() {
+	public RawDataNipponCandle getEntireChartCandle() {
 		return entireChartCandle;
 	}
 
-	public void setEntireChartCandle(NipponCandle entireChartCandle) {
+	public void setEntireChartCandle(RawDataNipponCandle entireChartCandle) {
 		this.entireChartCandle = entireChartCandle;
 	}
 
@@ -171,11 +171,11 @@ public class RawDataContainer {
 		this.previousDayClose = previousDayClose;
 	}
 
-	public List<NipponCandle> getCandles() {
+	public List<RawDataNipponCandle> getCandles() {
 		return candles;
 	}
 
-	public void setCandles(List<NipponCandle> candles) {
+	public void setCandles(List<RawDataNipponCandle> candles) {
 		this.candles = candles;
 	}
 }

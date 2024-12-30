@@ -3,8 +3,10 @@ package com.xzymon.sylar.constants;
 import java.util.HashMap;
 import java.util.Map;
 
-public class DayBarChartTimePoints {
+public class DayBy15MinuteIntervalsForBarChart {
 	public static final Map<Integer, String> TIME_POINTS = new HashMap<>();
+
+	public static final String PREVIOUS_DAY_LAST_TIME_POINT = "23:59:00";
 	static {
 		TIME_POINTS.put(0, "00:15:00");
 		TIME_POINTS.put(1, "00:30:00");

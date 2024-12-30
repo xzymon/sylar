@@ -8,12 +8,25 @@
     <import class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy"/>
     <import class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy"/>
 
-    <variable name="LOGS_PATH" value="/opt/logs"/>
+    <variable name="LOGS_PATH" value="/opt/logs/sylar"/>
 
     <appender name="FILESYSTEM_AP" class="RollingFileAppender">
         <file>${LOGS_PATH}/filesystem.log</file>
         <rollingPolicy class="SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>filesystem.%d{yyyy-MM-dd}-%i.log</fileNamePattern>
+            <fileNamePattern>${LOGS_PATH}/filesystem.%d{yyyy-MM-dd}-%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>3GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder class="PatternLayoutEncoder">
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{35} -%kvp- %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="SERVICE_AP" class="RollingFileAppender">
+        <file>${LOGS_PATH}/service.log</file>
+        <rollingPolicy class="SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOGS_PATH}/service.%d{yyyy-MM-dd}-%i.log</fileNamePattern>
             <maxFileSize>100MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>3GB</totalSizeCap>
@@ -26,7 +39,7 @@
     <appender name="PROCESSING_AP" class="RollingFileAppender">
         <file>${LOGS_PATH}/processing.log</file>
         <rollingPolicy class="SizeAndTimeBasedRollingPolicy">
-            <fileNamePattern>processing.%d{yyyy-MM-dd}-%i.log</fileNamePattern>
+            <fileNamePattern>${LOGS_PATH}/processing.%d{yyyy-MM-dd}-%i.log</fileNamePattern>
             <maxFileSize>100MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>3GB</totalSizeCap>
@@ -46,6 +59,11 @@
 
     <logger name="com.xzymon.sylar.scheduling">
         <appender-ref ref="FILESYSTEM_AP" />
+        <appender-ref ref="STDOUT" />
+    </logger>
+
+    <logger name="com.xzymon.sylar.service">
+        <appender-ref ref="SERVICE_AP" />
         <appender-ref ref="STDOUT" />
     </logger>
 

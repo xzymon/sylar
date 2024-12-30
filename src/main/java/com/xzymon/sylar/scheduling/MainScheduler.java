@@ -1,9 +1,9 @@
 package com.xzymon.sylar.scheduling;
 
-import com.xzymon.sylar.constants.ChartType;
-import com.xzymon.sylar.model.NipponCandleInterpretation;
-import com.xzymon.sylar.processing.StockPngPaletteImageProcessor;
+import com.xzymon.sylar.model.CsvOutput;
 import com.xzymon.sylar.model.RawDataContainer;
+import com.xzymon.sylar.service.BarStockPngPaletteImageProcessingService;
+import com.xzymon.sylar.service.StockPngPaletteImageProcessingService;
 import io.nayuki.png.ImageDecoder;
 import io.nayuki.png.PngImage;
 import io.nayuki.png.image.BufferedPaletteImage;
@@ -22,7 +22,6 @@ import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
 @Component
@@ -32,6 +31,7 @@ public class MainScheduler {
 
 	private static final String DIR_IN_PATH_PROBLEM_HINT = "Property loading.directory.in problem. Should be Read-Write directory. Hint: ";
 	private static final String DIR_PROC_PATH_PROBLEM_HINT = "Property loading.directory.processed problem. Should be Read-Write directory. Hint: ";
+	private static final String DIR_GEN_PATH_PROBLEM_HINT = "Property generatedCSV.directory.out problem. Should be Read-Write directory. Hint: ";
 
 	@Value("${loading.directory.in}")
 	private String loadingDirectoryIn;
@@ -39,7 +39,16 @@ public class MainScheduler {
 	@Value("${loading.directory.processed}")
 	private String loadingDirectoryProcessed;
 
+	@Value("${generatedCSV.directory.out}")
+	private String generatedCsvDirectory;
+
 	private static final SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
+
+	private StockPngPaletteImageProcessingService stockImageProcessingService;
+
+	public MainScheduler(StockPngPaletteImageProcessingService stockImageProcessingService) {
+		this.stockImageProcessingService = stockImageProcessingService;
+	}
 
 	//@Scheduled(fixedRate = 60 * 1000)
 	@Scheduled(cron = "0 * * * * *")
@@ -48,12 +57,14 @@ public class MainScheduler {
 		LOGGER.info(loadingDirectoryIn);
 		checkDirectory(loadingDirectoryIn, DIR_IN_PATH_PROBLEM_HINT);
 		checkDirectory(loadingDirectoryProcessed, DIR_PROC_PATH_PROBLEM_HINT);
+		checkDirectory(generatedCsvDirectory, DIR_GEN_PATH_PROBLEM_HINT);
 		processFiles(loadingDirectoryIn);
 	}
 
 	private void processFiles(String loadingDirectoryIn) {
 		Path path = Paths.get(loadingDirectoryIn);
 		List<Path> pathsToFiles;
+		CsvOutput csvOutput;
 		try {
 			pathsToFiles = Files.list(path)
 					.filter(p -> !Files.isDirectory(p))
@@ -61,29 +72,52 @@ public class MainScheduler {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-		for (Path pathsToFile : pathsToFiles) {
+		for (Path pathToFile : pathsToFiles) {
 			try {
-				processSingleFileForPath(pathsToFile);
+				csvOutput = processSingleFileForPath(pathToFile);
+				LOGGER.info(String.format("File %1$s processed.", pathToFile.getFileName().toString()));
+				moveFile(pathToFile);
+				LOGGER.info(String.format("File %1$s moved to processed directory.", pathToFile.getFileName().toString()));
+				storeInCsvFile(generatedCsvDirectory, csvOutput);
 			} catch (IOException e) {
-
+				e.printStackTrace();
 			}
 		}
 	}
 
-	private void processSingleFileForPath(Path path) throws IOException {
+	private CsvOutput processSingleFileForPath(Path path) throws IOException {
 		PngImage png = PngImage.read(new File(path.toString()));
 		BufferedPaletteImage buffPalImg = (BufferedPaletteImage) ImageDecoder.toImage(png);
-		StockPngPaletteImageProcessor stockImageProcessor = new StockPngPaletteImageProcessor();
-		RawDataContainer container = stockImageProcessor.process(buffPalImg);
-		Map<Integer, NipponCandleInterpretation> candleInterpretations;
-		if (ChartType.BAR.equals(container.getChartType())) {
-			//convert candle values to resulting time and value
-			candleInterpretations = StockPngPaletteImageProcessor.candlesConverter2(container);
-			candleInterpretations.forEach((k,v) -> LOGGER.info(String.format("%1$d -> %2$s", k, v.toCsvRow())));
-		}
+		BarStockPngPaletteImageProcessingService stockImageProcessor = new BarStockPngPaletteImageProcessingService();
+		RawDataContainer container = stockImageProcessor.extractRawDataFromImage(buffPalImg);
+		return stockImageProcessor.toCsvOutput(container);
+	}
 
-		Path processedPath = Paths.get(loadingDirectoryProcessed);
-		Files.move(path, processedPath);
+	private void moveFile(Path path) {
+		Path processedDirPath = Paths.get(loadingDirectoryProcessed);
+		Path movedFilePath =  processedDirPath.resolve(path.getFileName());
+		try {
+			Files.move(path, movedFilePath);
+		} catch (IOException e) {
+			LOGGER.error("Error when moving file {}", path.getFileName().toString());
+			throw new RuntimeException(e);
+		}
+	}
+
+	private void storeInCsvFile(String outputDir, CsvOutput csvOutput) {
+		Path path = Paths.get(outputDir, csvOutput.getFileName());
+		LOGGER.info(String.format("Will try to save file: %1$s", csvOutput.getFileName()));
+		if (Files.exists(path)) {
+			LOGGER.info(String.format("File %1$s already exists. Can't create file!!!", csvOutput.getFileName()));
+			return;
+		}
+		try {
+			Files.createFile(path);
+			Files.write(path, csvOutput.getContent());
+			LOGGER.info(String.format("File %1$s created and content saved.", csvOutput.getFileName()));
+		} catch (IOException e) {
+			LOGGER.error("Error when writing to file {}", csvOutput.getContent());
+		}
 	}
 
 	private void checkDirectory(String directoryPath, String loggerHint) {

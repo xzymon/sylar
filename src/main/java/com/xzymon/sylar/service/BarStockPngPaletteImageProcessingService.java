@@ -1,23 +1,30 @@
-package com.xzymon.sylar.processing;
+package com.xzymon.sylar.service;
 
 import com.xzymon.sylar.constants.*;
 import com.xzymon.sylar.constants.FontSize8Characters.FontSize8Character;
 import com.xzymon.sylar.helper.Helper;
 import com.xzymon.sylar.model.*;
 import com.xzymon.sylar.model.FrameCoords.FrameLine;
-import com.xzymon.sylar.model.NipponCandle.BuildingBlock;
+import com.xzymon.sylar.model.RawDataNipponCandle.BuildingBlock;
+import com.xzymon.sylar.processing.ConfirmationGear;
+import com.xzymon.sylar.processing.ImageExtractorServiceImpl;
+import com.xzymon.sylar.processing.OptimizedAreaDetector;
+import com.xzymon.sylar.processing.RawDataContainerToNipponCandlesConverter;
 import io.nayuki.png.image.BufferedPaletteImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.util.*;
 
-public class StockPngPaletteImageProcessor {
-	private static final Logger LOGGER = LoggerFactory.getLogger(StockPngPaletteImageProcessor.class);
+@Service
+public class BarStockPngPaletteImageProcessingService implements StockPngPaletteImageProcessingService {
+	private static final Logger LOGGER = LoggerFactory.getLogger(BarStockPngPaletteImageProcessingService.class);
+	private static final String HEADER_LINE = "Date,Time,Open,High,Low,Close";
 
-	public RawDataContainer process(BufferedPaletteImage img) {
+	public RawDataContainer extractRawDataFromImage(BufferedPaletteImage img) {
 		FontSize8Characters fontSize8Characters = new FontSize8Characters();
 		RawDataContainer result = new RawDataContainer();
 
@@ -42,7 +49,7 @@ public class StockPngPaletteImageProcessor {
 			valueFC.setRight(entireFC.getRight());
 			valueFC.setTop(entireFC.getTop());
 			valueFC.setBottom(timeAxisBarFC.getTop() - 1);
-			LOGGER.info(String.format("valueFC : ", valueFC));
+			LOGGER.info(String.format("valueFC : %1$s", valueFC));
 
 			//wykryj linię zamknięcia z dnia poprzedniego
 			result.setPreviousDayClose(detectPreviousDayClose(img, valueFC, LayerPaletteColorOnImage.PREVIOUS_DAY_CLOSE));
@@ -157,72 +164,37 @@ public class StockPngPaletteImageProcessor {
 		return result;
 	}
 
-	public static Map<Integer, NipponCandleInterpretation> candlesConverter2(RawDataContainer rawDataContainer) {
-		Map<Integer, NipponCandleInterpretation> result = new LinkedHashMap<>();
-		int count = 0;
-		FrameCoords extremalPoints = rawDataContainer.getValueSeriesExtremalPoints();
-		int leftMostX = extremalPoints.getLeft();
-		int rightMostX = extremalPoints.getRight();
-		int dividerI = (rightMostX - leftMostX ) / ChartType.BAR.getExpectedValuePointsCount();
-		int halfDIviderI = dividerI / 2;
-		double barCountD = ChartType.BAR.getExpectedValuePointsCount();
-		double dividerD = (rightMostX - leftMostX) / barCountD;
-		Integer position = null;
-		NipponCandleInterpretation ncInter;
-		Map<Integer, BigDecimal> hvMap = rawDataContainer.getHorizontalValuesMap();
-		String dateString = rawDataContainer.getGeneratedDateTimeArea().getExtractedText();
-		String reformatedDate = getDateYYYYDashMMDashDD(dateString);
-		int size = rawDataContainer.getCandles().size();
+	public CsvOutput toCsvOutput(RawDataContainer container) {
+		CsvOutput result = new CsvOutput();
+		List<String> csvRows = new ArrayList<>();
+		result.setHeaderLine(HEADER_LINE);
+		csvRows.add(result.getHeaderLine());
 
-		Map<Integer, Integer> referencePointToPositionMap = new HashMap<>();
-		int startPoint = leftMostX + halfDIviderI;
-		int orientationPointI;
-		double orientationPointD;
-		int aroundStart, aroundEnd;
+		NipponCandle previousDayCloseNipponCandle = RawDataContainerToNipponCandlesConverter.convertPreviousDayClose(container);
+		result.setPreviousDayCloseLine(previousDayCloseNipponCandle.toCsvRow());
+		csvRows.add(result.getPreviousDayCloseLine());
 
-		int maxJ = 0;
-		for (int i = 0; i < size; i++) {
-			orientationPointD = startPoint + (i * dividerD);
-			orientationPointI = (int) Math.round(orientationPointD);
-			aroundStart = orientationPointI - halfDIviderI;
-			aroundEnd = orientationPointI + halfDIviderI;
-			int j = aroundStart;
-			while (j <= aroundEnd) {
-				referencePointToPositionMap.put(j, i);
-				j++;
-			}
-			maxJ = aroundEnd;
-		}
-		for (int i = 0; i < maxJ; i++) {
-			if (i % 10 == 0) {
-				System.out.println(String.format("--- %1$d ---", i));
-			}
-			System.out.println(String.format("    %1$d -> %2$d", i, referencePointToPositionMap.get(i)));
-		}
+		//convert candle values to resulting time and value
+		Map<Integer, NipponCandle> nipponCandlesMap = RawDataContainerToNipponCandlesConverter.convert(container);
+		nipponCandlesMap.entrySet().stream()
+				.map(entry -> entry.getValue().toCsvRow())
+				.forEach(csvRows::add);
+		result.setContent(csvRows);
 
-		for (NipponCandle candle : rawDataContainer.getCandles()) {
-			System.out.println(String.format("Processing Candle[%1$d]: %2$s", count, candle));
-			ncInter = new NipponCandleInterpretation();
-			ncInter.setDateString(reformatedDate);
-			position = referencePointToPositionMap.get(candle.getDatetimeMarker());
-			ncInter.setTimeString(DayBarChartTimePoints.TIME_POINTS.get(position));
-			ncInter.setOpen(hvMap.get(candle.getOpen()));
-			ncInter.setHigh(hvMap.get(candle.getHigh()));
-			ncInter.setLow(hvMap.get(candle.getLow()));
-			ncInter.setClose(hvMap.get(candle.getClose()));
-			System.out.println(String.format("Putting Interpretation[%1$d]", count, candle));
-			result.put(position, ncInter);
-			count++;
-		}
-		System.out.println(String.format("Processed Candles count: %1$s", count));
-		if (count != rawDataContainer.getCandles().size()) {
-			LOGGER.error(String.format("Candles count mismatch: %1$d != %2$d", count, rawDataContainer.getCandles().size()));
-		}
+		String trimmedValorName = container.getValorNameArea().getExtractedText().trim();
+		String[] valorNameArr = trimmedValorName.split(" ");;
+		String strictValorName = valorNameArr[0];
+		String fileName = String.format("%1$s_b15m_%2$s_%3$s.csv",
+				strictValorName,
+				Helper.getDateYYYYMMDD(container.getGeneratedDateTimeArea().getExtractedText()),
+				"01"
+		);
+		result.setFileName(fileName);
 		return result;
 	}
 
-	public static Map<Integer, NipponCandleInterpretation> candlesConverter(RawDataContainer rawDataContainer) {
-		Map<Integer, NipponCandleInterpretation> result = new LinkedHashMap<>();
+	public static Map<Integer, NipponCandle> candlesConverter(RawDataContainer rawDataContainer) {
+		Map<Integer, NipponCandle> result = new LinkedHashMap<>();
 		int count = 0;
 		FrameCoords extremalPoints = rawDataContainer.getValueSeriesExtremalPoints();
 		int leftMostX = extremalPoints.getLeft();
@@ -236,14 +208,14 @@ public class StockPngPaletteImageProcessor {
 		BigDecimal positionBD;
 		MathContext mc1 = new MathContext(1);
 		MathContext mc2 = new MathContext(2);
-		NipponCandleInterpretation ncInter;
+		NipponCandle ncInter;
 		Map<Integer, BigDecimal> hvMap = rawDataContainer.getHorizontalValuesMap();
 		String dateString = rawDataContainer.getGeneratedDateTimeArea().getExtractedText();
-		String reformatedDate = getDateYYYYDashMMDashDD(dateString);
+		String reformatedDate = Helper.getDateYYYYDashMMDashDD(dateString);
 		int size = rawDataContainer.getCandles().size();
-		for (NipponCandle candle : rawDataContainer.getCandles()) {
+		for (RawDataNipponCandle candle : rawDataContainer.getCandles()) {
 			System.out.println(String.format("Processing Candle[%1$d]: %2$s", count, candle));
-			ncInter = new NipponCandleInterpretation();
+			ncInter = new NipponCandle();
 			positionD = (candle.getDatetimeMarker() - leftMostX - halfDIviderI) / dividerD;
 			positionBD = new BigDecimal(positionD, mc1);
 			position = positionBD.intValue();
@@ -252,7 +224,7 @@ public class StockPngPaletteImageProcessor {
 				position = positionBD.intValue();
 			}
 			ncInter.setDateString(reformatedDate);
-			ncInter.setTimeString(DayBarChartTimePoints.TIME_POINTS.get(position));
+			ncInter.setTimeString(DayBy15MinuteIntervalsForBarChart.TIME_POINTS.get(position));
 			ncInter.setOpen(hvMap.get(candle.getOpen()));
 			ncInter.setHigh(hvMap.get(candle.getHigh()));
 			ncInter.setLow(hvMap.get(candle.getLow()));
@@ -265,21 +237,6 @@ public class StockPngPaletteImageProcessor {
 		if (count != rawDataContainer.getCandles().size()) {
 			LOGGER.error(String.format("Candles count mismatch: %1$d != %2$d", count, rawDataContainer.getCandles().size()));
 		}
-		return result;
-	}
-
-	private static String getDateYYYYDashMMDashDD(String dateString) {
-		//expected format: 30 Wrz 2024 23:59 CEST
-		String trimmed = dateString.trim();
-		String[] dateParts = trimmed.split(" ");
-		if (dateParts.length != 5) {
-			LOGGER.error(String.format("Unexpected date format: %1$s", dateString));
-			throw new RuntimeException("Unexpected date format: " + dateString);
-		}
-		String dd = dateParts[0];
-		String mmm = dateParts[1];
-		String yyyy = dateParts[2];
-		String result = yyyy + "-" + MonthPlMapping.MMM_TO_MM.get(mmm) + "-" + dd;
 		return result;
 	}
 
@@ -365,8 +322,8 @@ public class StockPngPaletteImageProcessor {
 	}
 
 	private void extractBarChartValues(RawDataContainer result) {
-		List<NipponCandle> candles = result.getCandles();
-		NipponCandle candle;
+		List<RawDataNipponCandle> candles = result.getCandles();
+		RawDataNipponCandle candle;
 		int candlesInBucketCount = 0;
 		int min=0, max=0;
 		int expectedDayCandles = ChartType.BAR.getExpectedValuePointsCount();
@@ -408,7 +365,7 @@ public class StockPngPaletteImageProcessor {
 		System.out.println(String.format("Building blocks count: %1$s", buildingBlocksCount));
 		for (int i = 0; i < buildingBlocksCount; i++) {
 			buildingBlock = buildingBlocks.get(i);
-			candle = new NipponCandle();
+			candle = new RawDataNipponCandle();
 			candlesInBucketCount = buildingBlock.getRawValues().size();
 			Iterator<RawValueInBuckets> rawValueInBucketsIterator = buildingBlock.getRawValues().iterator();
 			int count = 0;
