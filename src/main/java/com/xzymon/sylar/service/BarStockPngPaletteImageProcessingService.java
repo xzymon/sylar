@@ -31,8 +31,6 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		// get frame coords
 		final int framePaletteColor = LayerPaletteColorOnImage.FRAMES;
 		FrameCoords entireFC = new FrameCoords();
-		FrameCoords valueFC = result.getValuesFrame();
-		FrameCoords volumeFC = result.getVolumeFrame();
 		int confirmationLevel = 5;
 		int height = img.getHeight();
 		int width = img.getWidth();
@@ -45,10 +43,9 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		System.out.println(entireFC);
 		FrameCoords timeAxisBarFC = detectTimeAxisBar(img, entireFC, LayerPaletteColorOnImage.TIME_BACKGROUND);
 		if (timeAxisBarFC.getBottom() != null) {
-			valueFC.setLeft(entireFC.getLeft());
-			valueFC.setRight(entireFC.getRight());
-			valueFC.setTop(entireFC.getTop());
+			FrameCoords valueFC = new FrameCoords(entireFC);
 			valueFC.setBottom(timeAxisBarFC.getTop() - 1);
+			result.setValuesFrame(valueFC);
 			LOGGER.info(String.format("valueFC : %1$s", valueFC));
 
 			//wykryj linię zamknięcia z dnia poprzedniego
@@ -59,11 +56,7 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 			LOGGER.info(String.format("hGauges : %1$s", hGauges));
 			Map<Integer, TextPixelArea> hGaugesMap = result.getHorizontalGauges();
 			for (int gauge : hGauges) {
-				FrameCoords aboutGaugeFC = new FrameCoords();
-				aboutGaugeFC.setLeft(valueFC.getRight()+1);
-				aboutGaugeFC.setRight(img.getWidth()-1);
-				aboutGaugeFC.setTop(gauge - FontSize8Characters.LINE_HEIGHT_HALF);
-				aboutGaugeFC.setBottom(gauge + FontSize8Characters.LINE_HEIGHT_HALF);
+				FrameCoords aboutGaugeFC = new FrameCoords(gauge - FontSize8Characters.LINE_HEIGHT_HALF, img.getWidth()-1, gauge + FontSize8Characters.LINE_HEIGHT_HALF, valueFC.getRight()+1);
 				TextPixelArea textPixelArea = ImageExtractorServiceImpl.exposeFromPixelArea(aboutGaugeFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.BACKGROUND);
 				textPixelArea.setExtractedText(detectTextInArea(aboutGaugeFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.BACKGROUND, fontSize8Characters.getNumbersDotCharsSorted()));
 				hGaugesMap.put(gauge, textPixelArea);
@@ -73,13 +66,7 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 			LOGGER.info(String.format("vGauges : %1$s", vGauges));
 			Map<Integer, TextPixelArea> vGaugesMap = result.getVerticalGauges();
 			for (int gauge : vGauges) {
-				FrameCoords aboutGaugeFC = new FrameCoords();
-
-				aboutGaugeFC.setTop(timeAxisBarFC.getTop());
-				aboutGaugeFC.setRight(gauge + FontSize8Characters.LETTER_WIDTH *3);
-				aboutGaugeFC.setBottom(timeAxisBarFC.getBottom());
-				aboutGaugeFC.setLeft(gauge - FontSize8Characters.LETTER_WIDTH *3);
-
+				FrameCoords aboutGaugeFC = new FrameCoords(timeAxisBarFC.getTop(), gauge + FontSize8Characters.LETTER_WIDTH *3, timeAxisBarFC.getBottom(), gauge - FontSize8Characters.LETTER_WIDTH *3);
 				TextPixelArea textPixelArea = ImageExtractorServiceImpl.exposeFromPixelArea(aboutGaugeFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.TIME_BACKGROUND);
 				textPixelArea.setExtractedText(detectTextInArea(aboutGaugeFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.TIME_BACKGROUND, fontSize8Characters.getNumbersColonCharsSorted()));
 				vGaugesMap.put(gauge, textPixelArea);
@@ -88,10 +75,9 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 			detectRawValuesFromArea(img, valueFC, result.getValueSeriesExtremalPoints(), result.getValuesPerHorizontal(), LayerPaletteColorOnImage.SERIES_LINE);
 
 			if (timeAxisBarFC.getBottom() + 1 < entireFC.getBottom()) {
-				volumeFC.setLeft(entireFC.getLeft());
-				volumeFC.setRight(entireFC.getRight());
+				FrameCoords volumeFC = new FrameCoords(entireFC);
 				volumeFC.setTop(timeAxisBarFC.getBottom() + 1);
-				volumeFC.setBottom(entireFC.getBottom());
+				result.setVolumeFrame(volumeFC);
 				LOGGER.info(String.format("volumeFC : %1$s", volumeFC));
 				detectRawValuesFromArea(img, volumeFC, result.getVolumeSeriesExtremalPoints(), result.getVolumePerHorizontal(), LayerPaletteColorOnImage.SERIES_LINE);
 			}
@@ -190,53 +176,6 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 				"01"
 		);
 		result.setFileName(fileName);
-		return result;
-	}
-
-	public static Map<Integer, NipponCandle> candlesConverter(RawDataContainer rawDataContainer) {
-		Map<Integer, NipponCandle> result = new LinkedHashMap<>();
-		int count = 0;
-		FrameCoords extremalPoints = rawDataContainer.getValueSeriesExtremalPoints();
-		int leftMostX = extremalPoints.getLeft();
-		int rightMostX = extremalPoints.getRight();
-		int dividerI = (rightMostX - leftMostX) / ChartType.BAR.getExpectedValuePointsCount();
-		int halfDIviderI = dividerI / 2;
-		double barCountD = ChartType.BAR.getExpectedValuePointsCount();
-		double dividerD = (rightMostX - leftMostX - dividerI) / barCountD;
-		int position;
-		double positionD;
-		BigDecimal positionBD;
-		MathContext mc1 = new MathContext(1);
-		MathContext mc2 = new MathContext(2);
-		NipponCandle ncInter;
-		Map<Integer, BigDecimal> hvMap = rawDataContainer.getHorizontalValuesMap();
-		String dateString = rawDataContainer.getGeneratedDateTimeArea().getExtractedText();
-		String reformatedDate = Helper.getDateYYYYDashMMDashDD(dateString);
-		int size = rawDataContainer.getCandles().size();
-		for (RawDataNipponCandle candle : rawDataContainer.getCandles()) {
-			System.out.println(String.format("Processing Candle[%1$d]: %2$s", count, candle));
-			ncInter = new NipponCandle();
-			positionD = (candle.getDatetimeMarker() - leftMostX - halfDIviderI) / dividerD;
-			positionBD = new BigDecimal(positionD, mc1);
-			position = positionBD.intValue();
-			if (position % size > 9) {
-				positionBD = new BigDecimal(positionD, mc2);
-				position = positionBD.intValue();
-			}
-			ncInter.setDateString(reformatedDate);
-			ncInter.setTimeString(DayBy15MinuteIntervalsForBarChart.TIME_POINTS.get(position));
-			ncInter.setOpen(hvMap.get(candle.getOpen()));
-			ncInter.setHigh(hvMap.get(candle.getHigh()));
-			ncInter.setLow(hvMap.get(candle.getLow()));
-			ncInter.setClose(hvMap.get(candle.getClose()));
-			System.out.println(String.format("Putting Interpretation[%1$d]", count, candle));
-			result.put(position, ncInter);
-			count++;
-		}
-		System.out.println(String.format("Processed Candles count: %1$s", count));
-		if (count != rawDataContainer.getCandles().size()) {
-			LOGGER.error(String.format("Candles count mismatch: %1$d != %2$d", count, rawDataContainer.getCandles().size()));
-		}
 		return result;
 	}
 
