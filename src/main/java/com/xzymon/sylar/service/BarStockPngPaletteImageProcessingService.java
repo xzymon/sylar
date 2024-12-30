@@ -31,16 +31,13 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		// get frame coords
 		final int framePaletteColor = LayerPaletteColorOnImage.FRAMES;
 		FrameCoords entireFC = new FrameCoords();
-		int confirmationLevel = 5;
-		int height = img.getHeight();
-		int width = img.getWidth();
-		ConfirmationGear confirmationGear = new ConfirmationGear(confirmationLevel, height);
-		// search for left edge frame
-		detectVerticalFrameLineOnImage(img, FrameLine.LEFT, 0, width, 1, confirmationGear, framePaletteColor, entireFC);
-		// search for right edge of frame
-		detectVerticalFrameLineOnImage(img, FrameLine.RIGHT, width-1, -1, -1, confirmationGear, framePaletteColor, entireFC);
+		ConfirmationGear confirmationGear = new ConfirmationGear(5, img.getHeight());
+
+		detectVerticalFrameLineOnImage(img, FrameLine.LEFT, 0, img.getWidth(), 1, confirmationGear, framePaletteColor, entireFC);
+		detectVerticalFrameLineOnImage(img, FrameLine.RIGHT, img.getWidth()-1, -1, -1, confirmationGear, framePaletteColor, entireFC);
 		detectVerticalFrameLineExtremums(img, confirmationGear, entireFC, framePaletteColor);
-		System.out.println(entireFC);
+
+		LOGGER.info("entireFC: {}", entireFC);
 		FrameCoords timeAxisBarFC = detectTimeAxisBar(img, entireFC, LayerPaletteColorOnImage.TIME_BACKGROUND);
 		if (timeAxisBarFC.getBottom() != null) {
 			FrameCoords valueFC = new FrameCoords(entireFC);
@@ -82,71 +79,68 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 				detectRawValuesFromArea(img, volumeFC, result.getVolumeSeriesExtremalPoints(), result.getVolumePerHorizontal(), LayerPaletteColorOnImage.SERIES_LINE);
 			}
 
-			//detect other texts
-			//valorName area
-			FrameCoords valorNameFC = new FrameCoords();
-			valorNameFC.setLeft(entireFC.getLeft());
-			Integer right = Helper.getGaugeReferencePointByText("4:00", result.getVerticalGauges());
-			if (right == null) {
-				right = FontSize8Characters.LETTER_WIDTH *20;
-			}
-			valorNameFC.setRight(right);
-			valorNameFC.setTop(0);
-			valorNameFC.setBottom(entireFC.getTop()-1);
-			TextPixelArea valorNameArea = ImageExtractorServiceImpl.exposeFromPixelArea(valorNameFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.BACKGROUND);
-			valorNameArea.setExtractedText(detectTextInArea(valorNameFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.BACKGROUND, fontSize8Characters.getAllKnownCharsNoWhitespaceSorted(), fontSize8Characters.getAllKnownCharsSorted()));
-			result.setValorNameArea(valorNameArea);
-
-			//generatedDateTimeArea
-			FrameCoords generatedDateTimeAreaFC = new FrameCoords();
-			Integer leftDT = Helper.getGaugeReferencePointByText("8:00", result.getHorizontalGauges());
-			if (leftDT == null) {
-				leftDT = entireFC.getRight() / 3;
-			}
-			generatedDateTimeAreaFC.setLeft(leftDT);
-			Integer rightDT = Helper.getGaugeReferencePointByText("16:00", result.getHorizontalGauges());
-			if (rightDT == null) {
-				rightDT = (entireFC.getRight() / 3) * 2;
-			}
-			generatedDateTimeAreaFC.setRight(rightDT);
-			generatedDateTimeAreaFC.setTop(0);
-			generatedDateTimeAreaFC.setBottom(entireFC.getTop()-1);
-			TextPixelArea generatedDateTimeArea = ImageExtractorServiceImpl.exposeFromPixelArea(generatedDateTimeAreaFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.BACKGROUND);
-			generatedDateTimeArea.setExtractedText(detectTextInArea(generatedDateTimeAreaFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.BACKGROUND, fontSize8Characters.getAllKnownCharsNoWhitespaceSorted(), fontSize8Characters.getAllKnownCharsSorted()));
-			result.setGeneratedDateTimeArea(generatedDateTimeArea);
-
-			//intervalArea
-			FrameCoords intervalAreaFC = new FrameCoords();
-			Integer leftI = Helper.getGaugeReferencePointByText("20:00", result.getHorizontalGauges());
-			if (leftI == null) {
-				leftI = (entireFC.getRight() / 5) * 4;
-			}
-			intervalAreaFC.setLeft(leftI);
-			intervalAreaFC.setRight(entireFC.getRight());
-			intervalAreaFC.setTop(entireFC.getBottom()+1);
-			intervalAreaFC.setBottom(height-1);
-			TextPixelArea intervalArea = ImageExtractorServiceImpl.exposeFromPixelArea(intervalAreaFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.BACKGROUND);
-			intervalArea.setExtractedText(detectTextInArea(intervalAreaFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.BACKGROUND, fontSize8Characters.getAllKnownCharsNoWhitespaceSorted(), fontSize8Characters.getAllKnownCharsSorted()));
-			result.setIntervalArea(intervalArea);
+			result.setValorNameArea(extractValorNameTextPixelArea(img, entireFC, result, fontSize8Characters));
+			result.setGeneratedDateTimeArea(extractGeneratedDateTimeTextPixelArea(img, entireFC, result, fontSize8Characters));
+			result.setIntervalArea(extractIntervalTextPixelArea(img, entireFC, result, img.getHeight(), fontSize8Characters));
 		}
 
 		if (result.getIntervalArea() != null && result.getIntervalArea().getExtractedText() != null && !result.getIntervalArea().getExtractedText().isEmpty()) {
 			result.setChartType(ChartType.getChartType(result.getIntervalArea().getExtractedText().trim()));
+			if (!ChartType.BAR.equals(result.getChartType())) {
+				LOGGER.info(String.format("Incorrect chart type for service to process, chart type is: %1$s", result.getChartType()));
+			}
 		}
 
 		if (result.getValuesPerHorizontal().size() > 0) {
 			extractValuesInterpretationForHorizontalLines(result);
-
-
-			if (ChartType.BAR.equals(result.getChartType())) {
-				extractBarChartValues(result);
-			} else if (ChartType.LINE.equals(result.getChartType())) {
-				extractLineChartValues(result);
-			} else {
-				LOGGER.info(String.format("Unknown chart type: %1$s", result.getChartType()));
-			}
+			extractBarChartValues(result);
 		}
 
+		return result;
+	}
+
+	private TextPixelArea extractIntervalTextPixelArea(BufferedPaletteImage img, FrameCoords entireFC, RawDataContainer result, int height, FontSize8Characters fontSize8Characters) {
+		FrameCoords intervalAreaFC = new FrameCoords();
+		intervalAreaFC.setLeft(getReferencePointFromHourTextOrRightProperty("20:00", entireFC, 5, 4, result));
+		intervalAreaFC.setRight(entireFC.getRight());
+		intervalAreaFC.setTop(entireFC.getBottom()+1);
+		intervalAreaFC.setBottom(height -1);
+		TextPixelArea intervalArea = ImageExtractorServiceImpl.exposeFromPixelArea(intervalAreaFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.BACKGROUND);
+		intervalArea.setExtractedText(detectTextInArea(intervalAreaFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.BACKGROUND, fontSize8Characters.getAllKnownCharsNoWhitespaceSorted(), fontSize8Characters.getAllKnownCharsSorted()));
+		return intervalArea;
+	}
+
+	private TextPixelArea extractValorNameTextPixelArea(BufferedPaletteImage img, FrameCoords entireFC, RawDataContainer rawDataContainer, FontSize8Characters fontSize8Characters) {
+		FrameCoords fc = new FrameCoords();
+		fc.setLeft(entireFC.getLeft());
+		Integer right = Helper.getGaugeReferencePointByText("4:00", rawDataContainer.getVerticalGauges());
+		if (right == null) {
+			right = FontSize8Characters.LETTER_WIDTH *20;
+		}
+		fc.setRight(right);
+		return extractTextPixelArea(img, entireFC, fontSize8Characters, fc);
+	}
+
+	private TextPixelArea extractGeneratedDateTimeTextPixelArea(BufferedPaletteImage img, FrameCoords entireFC, RawDataContainer rawDataContainer, FontSize8Characters fontSize8Characters) {
+		FrameCoords fc = new FrameCoords();
+		fc.setLeft(getReferencePointFromHourTextOrRightProperty("8:00", entireFC, 3,1, rawDataContainer));
+		fc.setRight(getReferencePointFromHourTextOrRightProperty("16:00", entireFC, 3, 2, rawDataContainer));
+		return extractTextPixelArea(img, entireFC, fontSize8Characters, fc);
+	}
+
+	private TextPixelArea extractTextPixelArea(BufferedPaletteImage img, FrameCoords entireFC, FontSize8Characters fontSize8Characters, FrameCoords fc) {
+		fc.setTop(0);
+		fc.setBottom(entireFC.getTop()-1);
+		TextPixelArea result = ImageExtractorServiceImpl.exposeFromPixelArea(fc, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.BACKGROUND);
+		result.setExtractedText(detectTextInArea(fc, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.BACKGROUND, fontSize8Characters.getAllKnownCharsNoWhitespaceSorted(), fontSize8Characters.getAllKnownCharsSorted()));
+		return result;
+	}
+
+	private static Integer getReferencePointFromHourTextOrRightProperty(String hourText, FrameCoords entireFC, int divisor, int dividend, RawDataContainer rawDataContainer) {
+		Integer result = Helper.getGaugeReferencePointByText(hourText, rawDataContainer.getHorizontalGauges());
+		if (result == null) {
+			result = entireFC.getRight() / divisor * dividend;
+		}
 		return result;
 	}
 
