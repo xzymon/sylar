@@ -74,6 +74,7 @@ public class MainScheduler {
 		}
 		for (Path pathToFile : pathsToFiles) {
 			try {
+				LOGGER.info(String.format("Processing file: %1$s", pathToFile.getFileName().toString()));
 				csvOutput = processSingleFileForPath(pathToFile);
 				LOGGER.info(String.format("File %1$s processed.", pathToFile.getFileName().toString()));
 				moveFile(pathToFile);

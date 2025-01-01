@@ -3,6 +3,7 @@ package com.xzymon.sylar.processing;
 import com.xzymon.sylar.constants.ChartType;
 import com.xzymon.sylar.constants.DayBy15MinuteIntervalsForBarChart;
 import com.xzymon.sylar.constants.StockTradingDaysGenerator;
+import com.xzymon.sylar.helper.DatesHelper;
 import com.xzymon.sylar.helper.Helper;
 import com.xzymon.sylar.model.FrameCoords;
 import com.xzymon.sylar.model.NipponCandle;
@@ -26,15 +27,22 @@ public class RawDataContainerToNipponCandlesConverter {
 		FrameCoords extremalPoints = rawDataContainer.getValueSeriesExtremalPoints();
 		int leftMostX = extremalPoints.getLeft();
 		int rightMostX = extremalPoints.getRight();
-		int dividerI = (rightMostX - leftMostX ) / ChartType.BAR.getExpectedValuePointsCount();
+		Integer alternativePoint1 = rawDataContainer.getTextToVG().get(ChartType.BAR.getFirstAlternativeTimePointText());
+		Integer alternativePoint2 = rawDataContainer.getTextToVG().get(ChartType.BAR.getLastAlternativeTimePointText());
+		int dividerI = (alternativePoint2 - alternativePoint1) / ChartType.BAR.getBetweenTimePointsCount();
 		int halfDIviderI = dividerI / 2;
-		double barCountD = ChartType.BAR.getExpectedValuePointsCount();
-		double dividerD = (rightMostX - leftMostX) / barCountD;
+		double betweenTimePointsD = ChartType.BAR.getBetweenTimePointsCount();
+		double dividerD = (alternativePoint2 - alternativePoint1) / betweenTimePointsD;
+
+		//int dividerI = (rightMostX - leftMostX ) / ChartType.BAR.getExpectedValuePointsCount();
+		//int halfDIviderI = dividerI / 2;
+		//double barCountD = ChartType.BAR.getExpectedValuePointsCount();
+		//double dividerD = (rightMostX - leftMostX) / barCountD;
 		Integer position = null;
 		NipponCandle ncInter;
 		Map<Integer, BigDecimal> hvMap = rawDataContainer.getHorizontalValuesMap();
 		String dateString = rawDataContainer.getGeneratedDateTimeArea().getExtractedText();
-		String reformatedDate = Helper.getDateYYYYDashMMDashDD(dateString);
+		String reformatedDate = DatesHelper.getDateYYYYDashMMDashDD(dateString);
 		int size = rawDataContainer.getCandles().size();
 
 		Map<Integer, Integer> referencePointToPositionMap = new HashMap<>();
@@ -68,6 +76,9 @@ public class RawDataContainerToNipponCandlesConverter {
 			ncInter = new NipponCandle();
 			ncInter.setDateString(reformatedDate);
 			position = referencePointToPositionMap.get(candle.getDatetimeMarker());
+			if (position == null) {
+				throw new RuntimeException(String.format("Position is null! For: candle[%1$d], datetimeMarker: %2$d", count, candle.getDatetimeMarker()));
+			}
 			ncInter.setTimeString(DayBy15MinuteIntervalsForBarChart.TIME_POINTS.get(position));
 			ncInter.setOpen(hvMap.get(candle.getOpen()));
 			ncInter.setHigh(hvMap.get(candle.getHigh()));
@@ -88,7 +99,7 @@ public class RawDataContainerToNipponCandlesConverter {
 		int valueToMap = rawDataContainer.getPreviousDayClose();
 		NipponCandle result = new NipponCandle();
 		String currentDateString = rawDataContainer.getGeneratedDateTimeArea().getExtractedText();
-		String reformatedCurrentDateString = Helper.getDateYYYYDashMMDashDD(currentDateString);
+		String reformatedCurrentDateString = DatesHelper.getDateYYYYDashMMDashDD(currentDateString);
 		StockTradingDaysGenerator stockTradingDaysGenerator = new StockTradingDaysGenerator();
 		List<String> stockDays = stockTradingDaysGenerator.generate();
 		int currentDayIndex = stockDays.indexOf(reformatedCurrentDateString);

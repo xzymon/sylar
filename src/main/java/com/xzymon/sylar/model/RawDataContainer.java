@@ -23,6 +23,7 @@ public class RawDataContainer {
 	private TextPixelArea generatedDateTimeArea;         //data i czas publikacji danych wykresu w tej postaci - obszar obrazu do ekstrakcji tekstu
 	private Map<Integer, TextPixelArea> horizontalGauges;//mapa dla prowadnic poziomych - obszar obrazu do ekstrakcji tekstu
 	private Map<Integer, TextPixelArea> verticalGauges;  //mapa dla prowadnic pionowych - obszar obrazu do ekstrakcji tekstu
+	private Map<String, Integer> textToVG;
 	private TextPixelArea intervalArea;                  //interval - obszar obrazu do ekstrakcji tekstu
 	private ChartType chartType;
 
@@ -38,6 +39,7 @@ public class RawDataContainer {
 		this.volumePerHorizontal = new ArrayList<>();
 		this.valueVLBuckets = new ArrayList<>();
 		this.horizontalGauges = new HashMap<>();
+		this.textToVG = new HashMap<>();
 		this.verticalGauges = new HashMap<>();
 		this.horizontalValuesMap = new HashMap<>();
 		this.candles = new ArrayList<>();
@@ -137,6 +139,14 @@ public class RawDataContainer {
 
 	public void setVerticalGauges(Map<Integer, TextPixelArea> verticalGauges) {
 		this.verticalGauges = verticalGauges;
+	}
+
+	public Map<String, Integer> getTextToVG() {
+		return textToVG;
+	}
+
+	public void setTextToVG(Map<String, Integer> textToVG) {
+		this.textToVG = textToVG;
 	}
 
 	public TextPixelArea getIntervalArea() {

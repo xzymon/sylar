@@ -49,11 +49,10 @@ public class BarStockPngPaletteImageProcessingService_JPYUSD20240930_Test {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-		
 	}
 
 	@Test
-	void shouldFindDetect95Candles() {
+	void shouldDetect95Candles() {
 		assertEquals(95, nipponCandles.size());
 	}
 

@@ -2,6 +2,7 @@ package com.xzymon.sylar.service;
 
 import com.xzymon.sylar.constants.*;
 import com.xzymon.sylar.constants.FontSize8Characters.FontSize8Character;
+import com.xzymon.sylar.helper.DatesHelper;
 import com.xzymon.sylar.helper.Helper;
 import com.xzymon.sylar.model.*;
 import com.xzymon.sylar.model.FrameCoords.FrameLine;
@@ -62,11 +63,16 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 			List<Integer> vGauges = detectReferencePointsForVerticalGauges(img, valueFC, LayerPaletteColorOnImage.FRAMES);
 			LOGGER.info(String.format("vGauges : %1$s", vGauges));
 			Map<Integer, TextPixelArea> vGaugesMap = result.getVerticalGauges();
+			Map<String, Integer> textToVG = result.getTextToVG();
 			for (int gauge : vGauges) {
 				FrameCoords aboutGaugeFC = new FrameCoords(timeAxisBarFC.getTop(), gauge + FontSize8Characters.LETTER_WIDTH *3, timeAxisBarFC.getBottom(), gauge - FontSize8Characters.LETTER_WIDTH *3);
 				TextPixelArea textPixelArea = ImageExtractorServiceImpl.exposeFromPixelArea(aboutGaugeFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.TIME_BACKGROUND);
-				textPixelArea.setExtractedText(detectTextInArea(aboutGaugeFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.TIME_BACKGROUND, fontSize8Characters.getNumbersColonCharsSorted()));
+				String detectedText = detectTextInArea(aboutGaugeFC, img, LayerPaletteColorOnImage.TEXT, LayerPaletteColorOnImage.TIME_BACKGROUND, fontSize8Characters.getNumbersColonCharsSorted());
+				textPixelArea.setExtractedText(detectedText);
 				vGaugesMap.put(gauge, textPixelArea);
+				if (detectedText != null && !detectedText.isEmpty() && !detectedText.trim().isEmpty()) {
+					textToVG.put(detectedText, gauge);
+				}
 			}
 
 			detectRawValuesFromArea(img, valueFC, result.getValueSeriesExtremalPoints(), result.getValuesPerHorizontal(), LayerPaletteColorOnImage.SERIES_LINE);
@@ -166,7 +172,7 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		String strictValorName = valorNameArr[0];
 		String fileName = String.format("%1$s_b15m_%2$s_%3$s.csv",
 				strictValorName,
-				Helper.getDateYYYYMMDD(container.getGeneratedDateTimeArea().getExtractedText()),
+				DatesHelper.getDateYYYYMMDD(container.getGeneratedDateTimeArea().getExtractedText()),
 				"01"
 		);
 		result.setFileName(fileName);
@@ -263,7 +269,12 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		int leftMostX = result.getValueSeriesExtremalPoints().getLeft();
 		int rightMostX = result.getValueSeriesExtremalPoints().getRight();
 		int pixelsForAllCandles = rightMostX - leftMostX;
-		int pixelsPerCandle = pixelsForAllCandles / expectedDayCandles;
+		//FIXME
+		//int pixelsPerCandle = pixelsForAllCandles / expectedDayCandles;
+		Integer verticalGauge2400 = result.getTextToVG().get(ChartType.BAR.getLastAlternativeTimePointText());
+		Integer simulatedVerticalGauge0000 = result.getValuesFrame().getLeft();
+		// +2 - bo tak jakby dodajemy swiece dla 00:00 i dla 24:00 - czyli 2 swiece
+		int pixelsPerCandle = (verticalGauge2400 - simulatedVerticalGauge0000) / (ChartType.BAR.getExpectedValuePointsCount() + 2);
 		List<BuildingBlock> buildingBlocks = new ArrayList<>();
 		BuildingBlock buildingBlock;
 		int candlePixelsCount, bucketXPosition;
@@ -439,8 +450,11 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		List<Integer> gauges = new ArrayList<>();
 		for (int loopX = firstInValueArea; loopX < afterLastInValueArea; loopX++) {
 			if (img.getPixel(loopX, lineY) == frameColor) {
-				LOGGER.info(String.format("Found gauge: %1$s", loopX));
-				gauges.add(loopX);
+				// zabezpieczenie na wypadek, gdyby od razu pod górną ramką była pierwsza horyzontalna linia - wtedy zafałszowywałaby zbierane wyniki
+				if (img.getPixel(loopX, lineY+1) == frameColor) {
+					LOGGER.info(String.format("Found gauge: %1$s", loopX));
+					gauges.add(loopX);
+				}
 			}
 		}
 		return gauges;
