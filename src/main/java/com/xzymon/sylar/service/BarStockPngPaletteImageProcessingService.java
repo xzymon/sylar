@@ -382,6 +382,7 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 			//czesanie "w pionie" - z góry wykresu do dołu wykresu
 			for (int loopY = vStart; loopY < vEnd; loopY++) {
 				if (img.getPixel(loopX, loopY) == seriesLineLayerPci) {
+					//znaleziono pierwszy piksel należący do (wycinka - paska) świecy
 					valuePresent = true;
 					current = new RawValueInBuckets(loopX, loopY, loopY);
 					if (!firstHValueRPDetected) {

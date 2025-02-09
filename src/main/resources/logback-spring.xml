@@ -8,7 +8,7 @@
     <import class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy"/>
     <import class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy"/>
 
-    <variable name="LOGS_PATH" value="/opt/logs/sylar"/>
+    <variable name="LOGS_PATH" value="/srv/http/logs/sylar"/>
 
     <appender name="FILESYSTEM_AP" class="RollingFileAppender">
         <file>${LOGS_PATH}/filesystem.log</file>
@@ -27,8 +27,8 @@
         <file>${LOGS_PATH}/service.log</file>
         <rollingPolicy class="SizeAndTimeBasedRollingPolicy">
             <fileNamePattern>${LOGS_PATH}/service.%d{yyyy-MM-dd}-%i.log</fileNamePattern>
-            <maxFileSize>100MB</maxFileSize>
-            <maxHistory>30</maxHistory>
+            <maxFileSize>10MB</maxFileSize>
+            <maxHistory>300</maxHistory>
             <totalSizeCap>3GB</totalSizeCap>
         </rollingPolicy>
         <encoder class="PatternLayoutEncoder">

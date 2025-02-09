@@ -72,17 +72,21 @@ public class MainScheduler {
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-		for (Path pathToFile : pathsToFiles) {
-			try {
-				LOGGER.info(String.format("Processing file: %1$s", pathToFile.getFileName().toString()));
-				csvOutput = processSingleFileForPath(pathToFile);
-				LOGGER.info(String.format("File %1$s processed.", pathToFile.getFileName().toString()));
-				moveFile(pathToFile);
-				LOGGER.info(String.format("File %1$s moved to processed directory.", pathToFile.getFileName().toString()));
-				storeInCsvFile(generatedCsvDirectory, csvOutput);
-			} catch (IOException e) {
-				e.printStackTrace();
+		if (!pathsToFiles.isEmpty()) {
+			for (Path pathToFile : pathsToFiles) {
+				try {
+					LOGGER.info(String.format("Processing file: %1$s", pathToFile.getFileName().toString()));
+					csvOutput = processSingleFileForPath(pathToFile);
+					LOGGER.info(String.format("File %1$s processed.", pathToFile.getFileName().toString()));
+					moveFile(pathToFile);
+					LOGGER.info(String.format("File %1$s moved to processed directory.", pathToFile.getFileName().toString()));
+					storeInCsvFile(generatedCsvDirectory, csvOutput);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 			}
+		} else {
+			LOGGER.info("No files to process.");
 		}
 	}
 
