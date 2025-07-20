@@ -1,6 +1,6 @@
 package com.xzymon.sylar.model;
 
-import com.xzymon.sylar.constants.ChartType;
+import com.xzymon.sylar.constants.StqChartType;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class RawDataContainer {
+public class StqRawDataContainer {
 	private FrameCoords valuesFrame;                     //granice wykresu notowań
 	private FrameCoords valueSeriesExtremalPoints;       //typ nie do końca pasuje, sama obecność tego jest dla celów optymalizacji
 	private FrameCoords volumeFrame;                     //granice wykresu obrotów
@@ -25,12 +25,12 @@ public class RawDataContainer {
 	private Map<Integer, TextPixelArea> verticalGauges;  //mapa dla prowadnic pionowych - obszar obrazu do ekstrakcji tekstu
 	private Map<String, Integer> textToVG;
 	private TextPixelArea intervalArea;                  //interval - obszar obrazu do ekstrakcji tekstu
-	private ChartType chartType;
+	private StqChartType stqChartType;
 
 	private Map<Integer, BigDecimal> horizontalValuesMap;//mapowanie położenia na wykresie na wartość
 	private List<RawDataNipponCandle> candles;
 
-	public RawDataContainer() {
+	public StqRawDataContainer() {
 		this.valuesFrame = new FrameCoords();
 		this.valueSeriesExtremalPoints = new FrameCoords();
 		this.volumeFrame = new FrameCoords();
@@ -157,12 +157,12 @@ public class RawDataContainer {
 		this.intervalArea = intervalArea;
 	}
 
-	public ChartType getChartType() {
-		return chartType;
+	public StqChartType getChartType() {
+		return stqChartType;
 	}
 
-	public void setChartType(ChartType chartType) {
-		this.chartType = chartType;
+	public void setChartType(StqChartType stqChartType) {
+		this.stqChartType = stqChartType;
 	}
 
 	public Map<Integer, BigDecimal> getHorizontalValuesMap() {

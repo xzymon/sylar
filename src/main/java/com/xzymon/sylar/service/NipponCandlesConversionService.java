@@ -1,34 +1,40 @@
-package com.xzymon.sylar.processing;
+package com.xzymon.sylar.service;
 
-import com.xzymon.sylar.constants.ChartType;
+import com.xzymon.sylar.constants.StqChartType;
 import com.xzymon.sylar.constants.DayBy15MinuteIntervalsForBarChart;
-import com.xzymon.sylar.constants.StockTradingDaysGenerator;
 import com.xzymon.sylar.helper.DatesHelper;
-import com.xzymon.sylar.model.FrameCoords;
 import com.xzymon.sylar.model.NipponCandle;
-import com.xzymon.sylar.model.RawDataContainer;
+import com.xzymon.sylar.model.StqRawDataContainer;
 import com.xzymon.sylar.model.RawDataNipponCandle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.util.*;
 import java.util.Comparator;
 
-public class RawDataContainerToNipponCandlesConverter {
-	private static final Logger LOGGER = LoggerFactory.getLogger(RawDataContainerToNipponCandlesConverter.class);
+@Service
+public class NipponCandlesConversionService {
+	private static final Logger LOGGER = LoggerFactory.getLogger(NipponCandlesConversionService.class);
 
-	public static Map<Integer, NipponCandle> convert(RawDataContainer rawDataContainer) {
+	private TradingDaysGeneratorService tradingDaysGeneratorService;
+
+	public NipponCandlesConversionService(TradingDaysGeneratorService tradingDaysGeneratorService) {
+		this.tradingDaysGeneratorService = tradingDaysGeneratorService;
+	}
+
+	public Map<Integer, NipponCandle> convert(StqRawDataContainer rawDataContainer) {
 		Map<Integer, NipponCandle> result = new LinkedHashMap<>();
 		int count = 0;
-		Integer orientationPoint24 = getVerticalOrientationPointAndCheck(ChartType.BAR.getLastAlternativeTimePointText(), rawDataContainer);
-		Integer orientationPoint4 = getVerticalOrientationPointAndCheck(ChartType.BAR.getFirstAlternativeTimePointText(), rawDataContainer);
-		int dividerI = (orientationPoint24 - orientationPoint4) / ChartType.BAR.getBetweenTimePointsCount();
+		Integer orientationPoint24 = getVerticalOrientationPointAndCheck(StqChartType.BAR.getLastAlternativeTimePointText(), rawDataContainer);
+		Integer orientationPoint4 = getVerticalOrientationPointAndCheck(StqChartType.BAR.getFirstAlternativeTimePointText(), rawDataContainer);
+		int dividerI = (orientationPoint24 - orientationPoint4) / StqChartType.BAR.getBetweenTimePointsCount();
 		int halfDIviderI = dividerI / 2;
-		double betweenTimePointsD = ChartType.BAR.getBetweenTimePointsCount();
+		double betweenTimePointsD = StqChartType.BAR.getBetweenTimePointsCount();
 		double dividerD = (orientationPoint24 - orientationPoint4) / betweenTimePointsD;
 
-		Integer orientationPoint2 = getGuessPreviusVerticalOrientationPointAndCheck(ChartType.BAR.getFirstAlternativeTimePointText(), rawDataContainer);
+		Integer orientationPoint2 = getGuessPreviusVerticalOrientationPointAndCheck(StqChartType.BAR.getFirstAlternativeTimePointText(), rawDataContainer);
 		Integer estimatedPoint0 = orientationPoint4 - (2 * (orientationPoint4 - orientationPoint2)) + dividerI;
 
 		Integer position = null;
@@ -36,7 +42,7 @@ public class RawDataContainerToNipponCandlesConverter {
 		Map<Integer, BigDecimal> hvMap = rawDataContainer.getHorizontalValuesMap();
 		String dateString = rawDataContainer.getGeneratedDateTimeArea().getExtractedText();
 		String reformatedDate = DatesHelper.getDateYYYYDashMMDashDD(dateString);
-		int universalSize = ChartType.BAR.getExpectedValuePointsCount();
+		int universalSize = StqChartType.BAR.getExpectedValuePointsCount();
 
 		Map<Integer, Integer> referencePointToPositionMap = new HashMap<>();
 		int orientationPointI;
@@ -58,13 +64,13 @@ public class RawDataContainerToNipponCandlesConverter {
 		}
 		for (int i = 0; i < maxJ; i++) {
 			if (i % 10 == 0) {
-				System.out.println(String.format("--- %1$d ---", i));
+				LOGGER.debug(String.format("--- %1$d ---", i));
 			}
-			System.out.println(String.format("    %1$d -> %2$d", i, referencePointToPositionMap.get(i)));
+			LOGGER.debug(String.format("    %1$d -> %2$d", i, referencePointToPositionMap.get(i)));
 		}
 
 		for (RawDataNipponCandle candle : rawDataContainer.getCandles()) {
-			System.out.println(String.format("Processing Candle[%1$d]: %2$s", count, candle));
+			LOGGER.debug(String.format("Processing Candle[%1$d]: %2$s", count, candle));
 			ncInter = new NipponCandle();
 			ncInter.setDateString(reformatedDate);
 			position = referencePointToPositionMap.get(candle.getDatetimeMarker());
@@ -78,18 +84,18 @@ public class RawDataContainerToNipponCandlesConverter {
 			ncInter.setHigh(hvMap.get(candle.getHigh()));
 			ncInter.setLow(hvMap.get(candle.getLow()));
 			ncInter.setClose(hvMap.get(candle.getClose()));
-			System.out.println(String.format("Putting Interpretation[%1$d]", count, candle));
+			LOGGER.debug(String.format("Putting Interpretation[%1$d]", count, candle));
 			result.put(position, ncInter);
 			count++;
 		}
-		System.out.println(String.format("Processed Candles count: %1$s", count));
+		LOGGER.debug(String.format("Processed Candles count: %1$s", count));
 		if (count != rawDataContainer.getCandles().size()) {
 			LOGGER.error(String.format("Candles count mismatch: %1$d != %2$d", count, rawDataContainer.getCandles().size()));
 		}
 		return result;
 	}
 
-	private static Integer getVerticalOrientationPointAndCheck(String orientationPointText, RawDataContainer rawDataContainer) {
+	private Integer getVerticalOrientationPointAndCheck(String orientationPointText, StqRawDataContainer rawDataContainer) {
 		Integer result = rawDataContainer.getTextToVG().get(orientationPointText);
 		if (result == null) {
 			String message = String.format("Orientation point %1$s is null!", orientationPointText);
@@ -99,7 +105,7 @@ public class RawDataContainerToNipponCandlesConverter {
 		return result;
 	}
 
-	private static Integer getGuessPreviusVerticalOrientationPointAndCheck(String orientationPointText, RawDataContainer rawDataContainer) {
+	private Integer getGuessPreviusVerticalOrientationPointAndCheck(String orientationPointText, StqRawDataContainer rawDataContainer) {
 		Integer currentVOP = rawDataContainer.getTextToVG().get(orientationPointText);
 		List<Integer> allVerticalGauges = new ArrayList<>(rawDataContainer.getVerticalGauges().keySet().stream().toList());
 		allVerticalGauges.sort(Comparator.naturalOrder());
@@ -118,13 +124,12 @@ public class RawDataContainerToNipponCandlesConverter {
 		return previousVOP;
 	}
 
-	public static NipponCandle convertPreviousDayClose(RawDataContainer rawDataContainer) {
+	public NipponCandle convertPreviousDayClose(StqRawDataContainer rawDataContainer) {
 		int valueToMap = rawDataContainer.getPreviousDayClose();
 		NipponCandle result = new NipponCandle();
 		String currentDateString = rawDataContainer.getGeneratedDateTimeArea().getExtractedText();
 		String reformatedCurrentDateString = DatesHelper.getDateYYYYDashMMDashDD(currentDateString);
-		StockTradingDaysGenerator stockTradingDaysGenerator = new StockTradingDaysGenerator();
-		List<String> stockDays = stockTradingDaysGenerator.generate();
+		List<String> stockDays = tradingDaysGeneratorService.generate();
 		int currentDayIndex = stockDays.indexOf(reformatedCurrentDateString);
 		int previousDayIndex = currentDayIndex - 1;
 		String previousDateString = stockDays.get(previousDayIndex);

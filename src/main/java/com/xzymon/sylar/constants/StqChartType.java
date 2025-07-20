@@ -1,6 +1,6 @@
 package com.xzymon.sylar.constants;
 
-public enum ChartType {
+public enum StqChartType {
 	BAR("Interwal 15 Min.", 24 * (60 / 15) - 1, "4:00", "24:00", 80),
 	LINE("Interwal 5 Min.", 24 * (60 / 5), "4:00", "24:00", 240);
 
@@ -10,7 +10,7 @@ public enum ChartType {
 	private String lastAlternativeTimePointText;
 	private int betweenTimePointsCount;
 
-	ChartType(String chartTypeName, int expectedValuePointsCount, String firstAlternativeTimePointText, String lastAlternativeTimePointText, int betweenTimePointsCount) {
+	StqChartType(String chartTypeName, int expectedValuePointsCount, String firstAlternativeTimePointText, String lastAlternativeTimePointText, int betweenTimePointsCount) {
 		this.chartTypeName = chartTypeName;
 		this.expectedValuePointsCount = expectedValuePointsCount;
 		this.firstAlternativeTimePointText = firstAlternativeTimePointText;
@@ -38,10 +38,10 @@ public enum ChartType {
 		return betweenTimePointsCount;
 	}
 
-	public static ChartType getChartType(String chartTypeName) {
-		for(ChartType chartType : ChartType.values()) {
-			if(chartType.getChartTypeName().equals(chartTypeName)) {
-				return chartType;
+	public static StqChartType getChartType(String chartTypeName) {
+		for(StqChartType stqChartType : StqChartType.values()) {
+			if(stqChartType.getChartTypeName().equals(chartTypeName)) {
+				return stqChartType;
 			}
 		}
 		return null;

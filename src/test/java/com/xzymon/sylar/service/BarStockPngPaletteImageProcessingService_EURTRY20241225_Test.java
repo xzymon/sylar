@@ -2,8 +2,7 @@ package com.xzymon.sylar.service;
 
 import com.xzymon.sylar.model.CsvOutput;
 import com.xzymon.sylar.model.NipponCandle;
-import com.xzymon.sylar.model.RawDataContainer;
-import com.xzymon.sylar.processing.RawDataContainerToNipponCandlesConverter;
+import com.xzymon.sylar.model.StqRawDataContainer;
 import io.nayuki.png.ImageDecoder;
 import io.nayuki.png.PngImage;
 import io.nayuki.png.image.BufferedPaletteImage;
@@ -27,9 +26,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class BarStockPngPaletteImageProcessingService_EURTRY20241225_Test {
 
-	private BarStockPngPaletteImageProcessingService stockPngImageProcessingService = new BarStockPngPaletteImageProcessingService();
+	private TradingDaysGeneratorService tradingDaysGeneratorService = new StockTradingDaysGeneratorService();
+	private NipponCandlesConversionService nipponCandlesConversionService = new NipponCandlesConversionService(tradingDaysGeneratorService);
+	private BarStockPngPaletteImageProcessingService stockPngImageProcessingService = new BarStockPngPaletteImageProcessingService(nipponCandlesConversionService);
 
-	private RawDataContainer rawDataContainer;
+	private StqRawDataContainer rawDataContainer;
 
 	private Map<Integer, NipponCandle> nipponCandles;
 	private List<Integer> candleCoreIndices;
@@ -46,7 +47,7 @@ public class BarStockPngPaletteImageProcessingService_EURTRY20241225_Test {
 			BufferedPaletteImage buffPalImg = (BufferedPaletteImage) ImageDecoder.toImage(png);
 			rawDataContainer = stockPngImageProcessingService.extractRawDataFromImage(buffPalImg);
 			assertNotNull(rawDataContainer);
-			nipponCandles = RawDataContainerToNipponCandlesConverter.convert(rawDataContainer);
+			nipponCandles = nipponCandlesConversionService.convert(rawDataContainer);
 			assertNotNull(nipponCandles);
 			candleCoreIndices = new ArrayList<>(nipponCandles.keySet().stream().toList());
 			candleCoreIndices.sort(Comparator.naturalOrder());

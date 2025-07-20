@@ -2,7 +2,7 @@ package com.xzymon.sylar.processing;
 
 import com.xzymon.sylar.helper.Helper;
 import com.xzymon.sylar.model.FrameCoords;
-import com.xzymon.sylar.model.RawDataContainer;
+import com.xzymon.sylar.model.StqRawDataContainer;
 import com.xzymon.sylar.model.TextPixelArea;
 import io.nayuki.png.PngImage;
 import io.nayuki.png.image.BufferedPaletteImage;
@@ -17,7 +17,7 @@ public class ImageExtractorServiceImpl {
 	//private final String dataImageFilePath = "/home/coder/Downloads/stooq/SOL.V_y.png";
 	private final String dataImageFilePath = "/home/coder/Downloads/stooq/YALL_US.png";
 	//private final String dataImageFilePath = "/home/coder/Downloads/stooq/INJ.V/ln_20240320.png";
-	private final RawDataContainer rawDataContainer = new RawDataContainer();
+	private final StqRawDataContainer rawDataContainer = new StqRawDataContainer();
 
 	public void start() throws IOException {
 		PngImage png = PngImage.read(new File(dataImageFilePath));

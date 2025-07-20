@@ -1,15 +1,19 @@
-package com.xzymon.sylar.constants;
+package com.xzymon.sylar.service;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Service;
 
 import java.time.DateTimeException;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 
-public class StockTradingDaysGenerator {
-	private static final Logger LOGGER = LoggerFactory.getLogger(StockTradingDaysGenerator.class);
+@ConditionalOnProperty(name = "tradingDays.generator", havingValue = "crypto")
+@Service
+public class CryptoTradingDaysGeneratorService implements TradingDaysGeneratorService {
+	private static final Logger LOGGER = LoggerFactory.getLogger(CryptoTradingDaysGeneratorService.class);
 
 	public static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
@@ -19,7 +23,6 @@ public class StockTradingDaysGenerator {
 
 	public static final List<String> ALL_DAYS = new ArrayList<>();
 	public static final List<String> TRADE_DAYS = new ArrayList<>();
-	public static final List<String> WORK_WEEK_DAYS = new ArrayList<>();
 	static {
 		DAYS_IN_MONTH.put(1, 31);
 		DAYS_IN_MONTH.put(2, 29);
@@ -37,12 +40,11 @@ public class StockTradingDaysGenerator {
 		EXCLUDED_DAYS.add(LocalDate.of(2024, 1, 1));
 		EXCLUDED_DAYS.add(LocalDate.of(2025, 1, 1));
 
-
 		initForLocalDate(LocalDate.of(2023, 12, 31));
 		initForYear(2024);
 		initForYear(2025);
 
-		TRADE_DAYS.addAll(WORK_WEEK_DAYS);
+		TRADE_DAYS.addAll(ALL_DAYS);
 		TRADE_DAYS.removeAll(EXCLUDED_DAYS);
 		Collections.sort(TRADE_DAYS);
 	}
@@ -50,12 +52,10 @@ public class StockTradingDaysGenerator {
 	private static void initForLocalDate(LocalDate localDate) {
 		String formattedExaminedDate = localDate.format(FORMATTER);
 		ALL_DAYS.add(formattedExaminedDate);
-		if (localDate.getDayOfWeek().getValue() != 6 && localDate.getDayOfWeek().getValue() != 7) {
-			WORK_WEEK_DAYS.add(formattedExaminedDate);
-		}
 	}
 
 	private static void initForYear(Integer year) {
+		boolean isLeapYear = year % 4 == 0 && year % 100 != 0 || year % 400 == 0;
 		LocalDate examinedDate;
 		String formattedExaminedDate;
 		Integer dayOfMonth;
@@ -66,11 +66,12 @@ public class StockTradingDaysGenerator {
 					examinedDate = LocalDate.of(year, monthDays.getKey(), dayOfMonth);
 					formattedExaminedDate = examinedDate.format(FORMATTER);
 					ALL_DAYS.add(formattedExaminedDate);
-					if (examinedDate.getDayOfWeek().getValue() != 6 && examinedDate.getDayOfWeek().getValue() != 7) {
-						WORK_WEEK_DAYS.add(formattedExaminedDate);
-					}
 					dayOfMonth++;
 				} catch (DateTimeException dte) {
+					if ( !isLeapYear && monthDays.getKey() == 2 && dayOfMonth == 29) {
+						dayOfMonth++;
+						continue;
+					}
 					LOGGER.error("For examined date: {}-{}-{}", year, monthDays.getKey(), dayOfMonth);
 					break;
 				}
@@ -78,6 +79,7 @@ public class StockTradingDaysGenerator {
 		}
 	}
 
+	@Override
 	public List<String> generate() {
 		return TRADE_DAYS;
 	}

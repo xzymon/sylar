@@ -2,8 +2,7 @@ package com.xzymon.sylar.service;
 
 import com.xzymon.sylar.model.CsvOutput;
 import com.xzymon.sylar.model.NipponCandle;
-import com.xzymon.sylar.model.RawDataContainer;
-import com.xzymon.sylar.processing.RawDataContainerToNipponCandlesConverter;
+import com.xzymon.sylar.model.StqRawDataContainer;
 import io.nayuki.png.ImageDecoder;
 import io.nayuki.png.PngImage;
 import io.nayuki.png.image.BufferedPaletteImage;
@@ -25,9 +24,11 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class BarStockPngPaletteImageProcessingService_JPYUSD20240930_Test {
 
-	private BarStockPngPaletteImageProcessingService stockPngImageProcessingService = new BarStockPngPaletteImageProcessingService();
+	private TradingDaysGeneratorService tradingDaysGeneratorService = new StockTradingDaysGeneratorService();
+	private NipponCandlesConversionService nipponCandlesConversionService = new NipponCandlesConversionService(tradingDaysGeneratorService);
+	private BarStockPngPaletteImageProcessingService stockPngImageProcessingService = new BarStockPngPaletteImageProcessingService(nipponCandlesConversionService);
 
-	private RawDataContainer rawDataContainer;
+	private StqRawDataContainer rawDataContainer;
 
 	private Map<Integer, NipponCandle> nipponCandles;
 
@@ -43,7 +44,7 @@ public class BarStockPngPaletteImageProcessingService_JPYUSD20240930_Test {
 			BufferedPaletteImage buffPalImg = (BufferedPaletteImage) ImageDecoder.toImage(png);
 			rawDataContainer = stockPngImageProcessingService.extractRawDataFromImage(buffPalImg);
 			assertNotNull(rawDataContainer);
-			nipponCandles = RawDataContainerToNipponCandlesConverter.convert(rawDataContainer);
+			nipponCandles = nipponCandlesConversionService.convert(rawDataContainer);
 			assertNotNull(nipponCandles);
 			csvOutput = stockPngImageProcessingService.toCsvOutput(rawDataContainer);
 		} catch (IOException e) {
@@ -139,7 +140,7 @@ public class BarStockPngPaletteImageProcessingService_JPYUSD20240930_Test {
 
 	@Test
 	void shouldRetainSameValuesForNipponCandleForPreviousDayClose() {
-		NipponCandle nipponCandle = RawDataContainerToNipponCandlesConverter.convertPreviousDayClose(rawDataContainer);
+		NipponCandle nipponCandle = nipponCandlesConversionService.convertPreviousDayClose(rawDataContainer);
 		assertEquals("2024-09-27", nipponCandle.getDateString());
 		assertEquals("23:59:00", nipponCandle.getTimeString());
 		assertEquals(new BigDecimal("0.00703318"), nipponCandle.getOpen());

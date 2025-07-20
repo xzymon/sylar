@@ -10,7 +10,6 @@ import com.xzymon.sylar.model.RawDataNipponCandle.BuildingBlock;
 import com.xzymon.sylar.processing.ConfirmationGear;
 import com.xzymon.sylar.processing.ImageExtractorServiceImpl;
 import com.xzymon.sylar.processing.OptimizedAreaDetector;
-import com.xzymon.sylar.processing.RawDataContainerToNipponCandlesConverter;
 import io.nayuki.png.image.BufferedPaletteImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,9 +24,15 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 	private static final Logger LOGGER = LoggerFactory.getLogger(BarStockPngPaletteImageProcessingService.class);
 	private static final String HEADER_LINE = "Date,Time,Open,High,Low,Close";
 
-	public RawDataContainer extractRawDataFromImage(BufferedPaletteImage img) {
+	private NipponCandlesConversionService nipponCandlesConversionService;
+
+	public BarStockPngPaletteImageProcessingService(NipponCandlesConversionService nipponCandlesConversionService) {
+		this.nipponCandlesConversionService = nipponCandlesConversionService;
+	}
+
+	public StqRawDataContainer extractRawDataFromImage(BufferedPaletteImage img) {
 		FontSize8Characters fontSize8Characters = new FontSize8Characters();
-		RawDataContainer result = new RawDataContainer();
+		StqRawDataContainer result = new StqRawDataContainer();
 
 		// get frame coords
 		final int framePaletteColor = LayerPaletteColorOnImage.FRAMES;
@@ -91,8 +96,8 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		}
 
 		if (result.getIntervalArea() != null && result.getIntervalArea().getExtractedText() != null && !result.getIntervalArea().getExtractedText().isEmpty()) {
-			result.setChartType(ChartType.getChartType(result.getIntervalArea().getExtractedText().trim()));
-			if (!ChartType.BAR.equals(result.getChartType())) {
+			result.setChartType(StqChartType.getChartType(result.getIntervalArea().getExtractedText().trim()));
+			if (!StqChartType.BAR.equals(result.getChartType())) {
 				LOGGER.info(String.format("Incorrect chart type for service to process, chart type is: %1$s", result.getChartType()));
 			}
 		}
@@ -105,7 +110,7 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		return result;
 	}
 
-	private TextPixelArea extractIntervalTextPixelArea(BufferedPaletteImage img, FrameCoords entireFC, RawDataContainer result, int height, FontSize8Characters fontSize8Characters) {
+	private TextPixelArea extractIntervalTextPixelArea(BufferedPaletteImage img, FrameCoords entireFC, StqRawDataContainer result, int height, FontSize8Characters fontSize8Characters) {
 		FrameCoords intervalAreaFC = new FrameCoords();
 		intervalAreaFC.setLeft(getReferencePointFromHourTextOrRightProperty("20:00", entireFC, 5, 4, result));
 		intervalAreaFC.setRight(entireFC.getRight());
@@ -116,7 +121,7 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		return intervalArea;
 	}
 
-	private TextPixelArea extractValorNameTextPixelArea(BufferedPaletteImage img, FrameCoords entireFC, RawDataContainer rawDataContainer, FontSize8Characters fontSize8Characters) {
+	private TextPixelArea extractValorNameTextPixelArea(BufferedPaletteImage img, FrameCoords entireFC, StqRawDataContainer rawDataContainer, FontSize8Characters fontSize8Characters) {
 		FrameCoords fc = new FrameCoords();
 		fc.setLeft(entireFC.getLeft());
 		Integer right = Helper.getGaugeReferencePointByText("4:00", rawDataContainer.getVerticalGauges());
@@ -127,7 +132,7 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		return extractTextPixelArea(img, entireFC, fontSize8Characters, fc);
 	}
 
-	private TextPixelArea extractGeneratedDateTimeTextPixelArea(BufferedPaletteImage img, FrameCoords entireFC, RawDataContainer rawDataContainer, FontSize8Characters fontSize8Characters) {
+	private TextPixelArea extractGeneratedDateTimeTextPixelArea(BufferedPaletteImage img, FrameCoords entireFC, StqRawDataContainer rawDataContainer, FontSize8Characters fontSize8Characters) {
 		FrameCoords fc = new FrameCoords();
 		fc.setLeft(getReferencePointFromHourTextOrRightProperty("8:00", entireFC, 3,1, rawDataContainer));
 		fc.setRight(getReferencePointFromHourTextOrRightProperty("16:00", entireFC, 3, 2, rawDataContainer));
@@ -142,7 +147,7 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		return result;
 	}
 
-	private static Integer getReferencePointFromHourTextOrRightProperty(String hourText, FrameCoords entireFC, int divisor, int dividend, RawDataContainer rawDataContainer) {
+	private static Integer getReferencePointFromHourTextOrRightProperty(String hourText, FrameCoords entireFC, int divisor, int dividend, StqRawDataContainer rawDataContainer) {
 		Integer result = Helper.getGaugeReferencePointByText(hourText, rawDataContainer.getHorizontalGauges());
 		if (result == null) {
 			result = entireFC.getRight() / divisor * dividend;
@@ -150,18 +155,18 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		return result;
 	}
 
-	public CsvOutput toCsvOutput(RawDataContainer container) {
+	public CsvOutput toCsvOutput(StqRawDataContainer container) {
 		CsvOutput result = new CsvOutput();
 		List<String> csvRows = new ArrayList<>();
 		result.setHeaderLine(HEADER_LINE);
 		csvRows.add(result.getHeaderLine());
 
-		NipponCandle previousDayCloseNipponCandle = RawDataContainerToNipponCandlesConverter.convertPreviousDayClose(container);
+		NipponCandle previousDayCloseNipponCandle = nipponCandlesConversionService.convertPreviousDayClose(container);
 		result.setPreviousDayCloseLine(previousDayCloseNipponCandle.toCsvRow());
 		csvRows.add(result.getPreviousDayCloseLine());
 
 		//convert candle values to resulting time and value
-		Map<Integer, NipponCandle> nipponCandlesMap = RawDataContainerToNipponCandlesConverter.convert(container);
+		Map<Integer, NipponCandle> nipponCandlesMap = nipponCandlesConversionService.convert(container);
 		nipponCandlesMap.entrySet().stream()
 				.map(entry -> entry.getValue().toCsvRow())
 				.forEach(csvRows::add);
@@ -179,7 +184,10 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		return result;
 	}
 
-	private void extractValuesInterpretationForHorizontalLines(RawDataContainer result) {
+	private void extractValuesInterpretationForHorizontalLines(StqRawDataContainer result) {
+		//FIXME - gdy wartość zamknięcie poprzedniego dnia jest extremalne względem reszty wykresu
+		// trzeba wygenerować wartości do zamknięcie włącznie - po odpowiedniej stronie
+		// ewentualnie po prostu w ciemno generować wartości od bandy do bandy (od top+1 do bottom-1)
 		Map<Integer, BigDecimal> valuesInterpretationMap = new HashMap<>();
 		Map<Integer, TextPixelArea> horizontalGauges = result.getHorizontalGauges();
 		for (Map.Entry<Integer, TextPixelArea> entry : horizontalGauges.entrySet()) {
@@ -226,9 +234,11 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 				}
 			}
 
+			Integer previousDayClose = result.getPreviousDayClose();
 			Integer firstRangePoint = sortedRangePoints.get(0);
 			BigDecimal firstRangeValue = valuesInterpretationMap.get(firstRangePoint);
-			lowestRangePoint = result.getValueSeriesExtremalPoints().getTop();
+			Integer topRangePoint = result.getValueSeriesExtremalPoints().getTop();
+			lowestRangePoint = topRangePoint > previousDayClose ? previousDayClose : topRangePoint;
 			if (lowestRangePoint < firstRangePoint) {
 				rangeGap = firstRangePoint - lowestRangePoint;
 				MathContext mc = new MathContext(greatestPrecision + 3);
@@ -241,7 +251,8 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 
 			Integer lastRangePoint = sortedRangePoints.get(sortedRangePoints.size()-1);
 			BigDecimal lastRangeValue = valuesInterpretationMap.get(lastRangePoint);
-			highestRangePoint = result.getValueSeriesExtremalPoints().getBottom();
+			Integer bottomRangePoint = result.getValueSeriesExtremalPoints().getBottom();
+			highestRangePoint = bottomRangePoint < previousDayClose ? previousDayClose : bottomRangePoint;
 			if (highestRangePoint != null && highestRangePoint > lastRangePoint) {
 				rangeGap = highestRangePoint - lastRangePoint;
 				MathContext mc = new MathContext(greatestPrecision + 3);
@@ -256,25 +267,25 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		result.setHorizontalValuesMap(valuesInterpretationMap);
 	}
 
-	private void extractLineChartValues(RawDataContainer result) {
+	private void extractLineChartValues(StqRawDataContainer result) {
 
 	}
 
-	private void extractBarChartValues(RawDataContainer result) {
+	private void extractBarChartValues(StqRawDataContainer result) {
 		List<RawDataNipponCandle> candles = result.getCandles();
 		RawDataNipponCandle candle;
 		int candlesInBucketCount = 0;
 		int min=0, max=0;
-		int expectedDayCandles = ChartType.BAR.getExpectedValuePointsCount();
+		int expectedDayCandles = StqChartType.BAR.getExpectedValuePointsCount();
 		int leftMostX = result.getValueSeriesExtremalPoints().getLeft();
 		int rightMostX = result.getValueSeriesExtremalPoints().getRight();
 		int pixelsForAllCandles = rightMostX - leftMostX;
 		//FIXME
 		//int pixelsPerCandle = pixelsForAllCandles / expectedDayCandles;
-		Integer verticalGauge2400 = result.getTextToVG().get(ChartType.BAR.getLastAlternativeTimePointText());
+		Integer verticalGauge2400 = result.getTextToVG().get(StqChartType.BAR.getLastAlternativeTimePointText());
 		Integer simulatedVerticalGauge0000 = result.getValuesFrame().getLeft();
 		// +2 - bo tak jakby dodajemy swiece dla 00:00 i dla 24:00 - czyli 2 swiece
-		int pixelsPerCandle = (verticalGauge2400 - simulatedVerticalGauge0000) / (ChartType.BAR.getExpectedValuePointsCount() + 2);
+		int pixelsPerCandle = (verticalGauge2400 - simulatedVerticalGauge0000) / (StqChartType.BAR.getExpectedValuePointsCount() + 2);
 		List<BuildingBlock> buildingBlocks = new ArrayList<>();
 		BuildingBlock buildingBlock;
 		int candlePixelsCount, bucketXPosition;
@@ -300,13 +311,13 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 						bucketXPosition++;
 						buildingBlock.getRawValues().add(currentBucket);
 					} else {
-						System.out.println(String.format("Bucket X position mismatch while in %1$d buildingBlock: %2$s != %3$s", buildingBlocksCount, bucketXPosition, currentBucket.getReferencePointOnAxis()));
+						LOGGER.error(String.format("Bucket X position mismatch while in %1$d buildingBlock: %2$s != %3$s", buildingBlocksCount, bucketXPosition, currentBucket.getReferencePointOnAxis()));
 						break;
 					}
 				}
 			}
 		}
-		System.out.println(String.format("Building blocks count: %1$s", buildingBlocksCount));
+		LOGGER.debug(String.format("Building blocks count: %1$s", buildingBlocksCount));
 		for (int i = 0; i < buildingBlocksCount; i++) {
 			buildingBlock = buildingBlocks.get(i);
 			candle = new RawDataNipponCandle();
@@ -342,14 +353,14 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 	private String detectTextInArea(FrameCoords area, BufferedPaletteImage img, int paletteColorToSense, int clearValue, List<FontSize8Character> charsToDetect) {
 		OptimizedAreaDetector optimizedAreaDetector = new OptimizedAreaDetector(area, img, paletteColorToSense, charsToDetect, clearValue);
 		String detectedChars = optimizedAreaDetector.detect();
-		System.out.println(String.format("Detected chars: %1$s", detectedChars));
+		LOGGER.debug(String.format("Detected chars: %1$s", detectedChars));
 		return detectedChars;
 	}
 
 	private String detectTextInArea(FrameCoords area, BufferedPaletteImage img, int paletteColorToSense, int clearValue, List<FontSize8Character> charsToDetect, List<FontSize8Character> charsToDetectWhenNotEmpty) {
 		OptimizedAreaDetector optimizedAreaDetector = new OptimizedAreaDetector(area, img, paletteColorToSense, charsToDetect, charsToDetectWhenNotEmpty, clearValue);
 		String detectedChars = optimizedAreaDetector.detect();
-		System.out.println(String.format("Detected chars: %1$s", detectedChars));
+		LOGGER.debug(String.format("Detected chars: %1$s", detectedChars));
 		return detectedChars;
 	}
 
@@ -396,7 +407,7 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 						if (loopY < topMostY) topMostY = loopY;
 						if (loopY > bottomMostY) {
 							bottomMostY = loopY;
-							System.out.println(String.format("bottomMostY: %1$s", bottomMostY));
+							LOGGER.debug(String.format("bottomMostY: %1$s", bottomMostY));
 						}
 					}
 					valuesInBuckets.add(current);
@@ -410,7 +421,7 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 					current.setMax(series);
 					if (series > bottomMostY) {
 						bottomMostY = series;
-						System.out.println(String.format("bottomMostY: %1$s", bottomMostY));
+						LOGGER.debug(String.format("bottomMostY: %1$s", bottomMostY));
 					}
 					series++;
 				} else {
@@ -418,14 +429,14 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 				}
 			}
 			if (valuePresent) {
-				LOGGER.info(String.format("f(%1$d)=(%2$d;%3$d)%n", current.getReferencePointOnAxis(), current.getMin(), current.getMax()));
+				LOGGER.debug(String.format("f(%1$d)=(%2$d;%3$d)%n", current.getReferencePointOnAxis(), current.getMin(), current.getMax()));
 			}
 			if (firstHValueRPDetected) {
 				extremumsFC.setLeft(leftMostX);
 				extremumsFC.setRight(rightMostX);
 				extremumsFC.setTop(topMostY);
 				extremumsFC.setBottom(bottomMostY);
-				LOGGER.info(String.format("extremumsFC : %1$s", extremumsFC));
+				LOGGER.debug(String.format("extremumsFC : %1$s", extremumsFC));
 			}
 		}
 	}
@@ -437,7 +448,7 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		List<Integer> gauges = new ArrayList<>();
 		for (int loopY = firstInValueArea; loopY < afterLastInValueArea; loopY++) {
 			if (img.getPixel(lineX, loopY) == frameColor) {
-				LOGGER.info(String.format("Found gauge: %1$s", loopY));
+				LOGGER.debug(String.format("Found gauge: %1$s", loopY));
 				gauges.add(loopY);
 			}
 		}
@@ -453,7 +464,7 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 			if (img.getPixel(loopX, lineY) == frameColor) {
 				// zabezpieczenie na wypadek, gdyby od razu pod górną ramką była pierwsza horyzontalna linia - wtedy zafałszowywałaby zbierane wyniki
 				if (img.getPixel(loopX, lineY+1) == frameColor) {
-					LOGGER.info(String.format("Found gauge: %1$s", loopX));
+					LOGGER.debug(String.format("Found gauge: %1$s", loopX));
 					gauges.add(loopX);
 				}
 			}
@@ -533,10 +544,10 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 		int[] confirmYArr = confirmationGear.getLevelPoints();
 		for (int loopX = loopStart; loopX != loopEnd; loopX=loopX + loopStep) {
 			hits = 0;
-			LOGGER.info(String.format("[%1$d] : ", loopX));
+			LOGGER.debug(String.format("[%1$d] : ", loopX));
 			for (int loopArr = 0; loopArr < confirmationLevel; loopArr++) {
 				pixelPaletteColor = img.getPixel(loopX, confirmYArr[loopArr]);
-				LOGGER.info(String.format("[%1$d] = %2$d, ", loopX, pixelPaletteColor));
+				LOGGER.debug(String.format("[%1$d] = %2$d, ", loopX, pixelPaletteColor));
 				if (pixelPaletteColor == paletteColorToSense) {
 					hits++;
 				}

@@ -14,6 +14,9 @@ import org.springframework.core.io.ClassPathResource;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 @SpringBootTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class BarStockPngPaletteImageProcessingService_USDJPY20241220_Test {
+public class BarStockPngPaletteImageProcessingService_EURJPY20250310_Test  {
 
 	private TradingDaysGeneratorService tradingDaysGeneratorService = new StockTradingDaysGeneratorService();
 	private NipponCandlesConversionService nipponCandlesConversionService = new NipponCandlesConversionService(tradingDaysGeneratorService);
@@ -30,12 +33,13 @@ public class BarStockPngPaletteImageProcessingService_USDJPY20241220_Test {
 	private StqRawDataContainer rawDataContainer;
 
 	private Map<Integer, NipponCandle> nipponCandles;
+	private List<Integer> candleCoreIndices;
 
 	private CsvOutput csvOutput;
 
 	@BeforeAll
 	void setUp() {
-		ClassPathResource resource = new ClassPathResource("test-files/br_20241220.png");
+		ClassPathResource resource = new ClassPathResource("test-files/br_20250310.png");
 		File imageFile = null;
 		try {
 			imageFile = resource.getFile();
@@ -45,6 +49,8 @@ public class BarStockPngPaletteImageProcessingService_USDJPY20241220_Test {
 			assertNotNull(rawDataContainer);
 			nipponCandles = nipponCandlesConversionService.convert(rawDataContainer);
 			assertNotNull(nipponCandles);
+			candleCoreIndices = new ArrayList<>(nipponCandles.keySet().stream().toList());
+			candleCoreIndices.sort(Comparator.naturalOrder());
 			csvOutput = stockPngImageProcessingService.toCsvOutput(rawDataContainer);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
@@ -52,7 +58,9 @@ public class BarStockPngPaletteImageProcessingService_USDJPY20241220_Test {
 	}
 
 	@Test
-	void shouldDetect89Candles() {
-		assertEquals(89, nipponCandles.size());
+	void shouldDetectDayOpenLine() {
+		assertNotNull(csvOutput.getContent().getFirst());
+		String[] splitted = csvOutput.getContent().get(1).split(",");
+		assertEquals("160.51948", splitted[2]);
 	}
 }
