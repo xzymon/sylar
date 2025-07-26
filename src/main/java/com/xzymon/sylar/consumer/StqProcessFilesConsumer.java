@@ -24,13 +24,18 @@ public class StqProcessFilesConsumer implements ProcessFilesConsumer {
     }
 
     @Override
-    public void accept(PathsDto pathsDto) throws IOException {
-        log.info(String.format("Processing file: %1$s", pathsDto.getPathToInputFile().getFileName().toString()));
-        CsvOutput csvOutput = processSingleFileForPath(pathsDto.getPathToInputFile());
-        log.info(String.format("File %1$s processed.", pathsDto.getPathToInputFile().getFileName().toString()));
-        moveFile(pathsDto.getPathToInputFile(), pathsDto.getLoadingDirectoryProcessed());
-        log.info(String.format("File %1$s moved to processed directory.", pathsDto.getPathToInputFile().getFileName().toString()));
-        storeInCsvFile(pathsDto.getGeneratedCsvDirectory(), csvOutput);
+    public void accept(PathsDto pathsDto) {
+        try {
+            log.info(String.format("Processing file: %1$s", pathsDto.getPathToInputFile().getFileName().toString()));
+            CsvOutput csvOutput = processSingleFileForPath(pathsDto.getPathToInputFile());
+            log.info(String.format("File %1$s processed.", pathsDto.getPathToInputFile().getFileName().toString()));
+            moveFile(pathsDto.getPathToInputFile(), pathsDto.getLoadingDirectoryProcessed());
+            log.info(String.format("File %1$s moved to processed directory.", pathsDto.getPathToInputFile().getFileName().toString()));
+            storeInCsvFile(pathsDto.getGeneratedCsvDirectory(), csvOutput);
+        } catch (IOException e) {
+            //log.error("Error when processing file {}", pathsDto.getPathToInputFile().getFileName().toString());
+            throw new RuntimeException(e);
+        }
     }
 
     private CsvOutput processSingleFileForPath(Path path) throws IOException {

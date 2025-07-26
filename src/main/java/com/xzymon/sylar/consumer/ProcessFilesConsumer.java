@@ -11,10 +11,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 @FunctionalInterface
-public interface ProcessFilesConsumer {
+public interface ProcessFilesConsumer extends java.util.function.Consumer<PathsDto> {
     static final Logger LOGGER = LoggerFactory.getLogger(ProcessFilesConsumer.class);
 
-    void accept(PathsDto pathsDto) throws IOException;
+    void accept(PathsDto pathsDto);
 
     default void moveFile(Path fromPath, String toPathString) {
         Path processedDirPath = Paths.get(toPathString);

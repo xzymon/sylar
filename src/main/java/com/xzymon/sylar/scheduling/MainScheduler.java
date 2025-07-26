@@ -111,11 +111,7 @@ public class MainScheduler {
 		}
 		if (!pathsToFiles.isEmpty()) {
 			for (Path pathToFile : pathsToFiles) {
-				try {
-					processFilesConsumer.accept(new PathsDto(loadingDirectoryProcessed, generatedCsvDirectory, generatedPngDirectory, pathToFile));
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+				processFilesConsumer.accept(new PathsDto(loadingDirectoryProcessed, generatedCsvDirectory, generatedPngDirectory, pathToFile));
 			}
 		} else {
 			LOGGER.info("No files to process.");

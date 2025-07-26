@@ -1,7 +1,11 @@
 package com.xzymon.sylar.consumer;
 
+import com.xzymon.sylar.function.DetectedTrimmedShapePredicate;
+import com.xzymon.sylar.function.PrintTrimmedMonoShapePredicate;
+import com.xzymon.sylar.function.ReportingUnknownTrimmedShapePredicate;
 import com.xzymon.sylar.helper.PathsDto;
 import com.xzymon.sylar.model.FrameCoords;
+import com.xzymon.sylar.model.PixelShapeContainer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -18,10 +22,14 @@ import java.time.format.DateTimeFormatter;
 @Slf4j
 public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
     @Override
-    public void accept(PathsDto pathsDto) throws IOException {
+    public void accept(PathsDto pathsDto) {
         log.info(String.format("Processing file: %1$s", pathsDto.getPathToInputFile().getFileName().toString()));
         //CsvOutput csvOutput = processSingleFileForPath(pathsDto.getPathToInputFile());
-        storeInPngFile(pathsDto.getPathToInputFile(), pathsDto.getGeneratedPngDirectory());
+        try {
+            storeInPngFile(pathsDto.getPathToInputFile(), pathsDto.getGeneratedPngDirectory());
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         log.info(String.format("File %1$s processed.", pathsDto.getPathToInputFile().getFileName().toString()));
         moveFile(pathsDto.getPathToInputFile(), pathsDto.getLoadingDirectoryProcessed());
         log.info(String.format("File %1$s moved to processed directory.", pathsDto.getPathToInputFile().getFileName().toString()));
@@ -37,6 +45,7 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
     }*/
 
     private void storeInPngFile(Path inputPath, String genPngDir) throws IOException {
+        log.info("Processing file: " + inputPath.toString());
         BufferedImage image = ImageIO.read(new File(inputPath.toString()));
 
         FrameCoords snapshotDateTimeFC = new FrameCoords( 9, 253, 37, 33);
@@ -44,8 +53,9 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
 
         int arrWidth = snapshotDateTimeFC.getRight() - snapshotDateTimeFC.getLeft();
         int arrHeight = snapshotDateTimeFC.getBottom() - snapshotDateTimeFC.getTop();
-        int[] scannedVertically = scanVertically(snapshotDateTimePixels, arrWidth, arrHeight);
-        printTrimmedChars(scannedVertically, snapshotDateTimePixels, arrWidth, arrHeight);
+        int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(snapshotDateTimePixels, arrWidth, arrHeight);
+        //detectTrimmedCharsAndRun(scannedVertically, snapshotDateTimePixels, arrWidth, arrHeight, new PrintTrimmedMonoShapePredicate());
+        detectTrimmedCharsAndRun(scannedVertically, snapshotDateTimePixels, arrWidth, arrHeight, new ReportingUnknownTrimmedShapePredicate());
         //printArea(0, 12, snapshotDateTimePixels, arrWidth, arrHeight, "First char");
 
         /*
@@ -79,7 +89,18 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
         return subimage.getRGB(0, 0, subimage.getWidth(), subimage.getHeight(), null, 0, subimage.getWidth());
     }
 
-    private static int[] scanVertically(int[] pixelArray, int arrWidth, int arrHeight) {
+    /**
+     * Scans a 2D pixel array vertically and remaps the data to a monochromatic representation,
+     * comparing each pixel's value to the top-left pixel value. The result is an array where
+     * each element represents the count of differing pixels in each column.
+     *
+     * @param pixelArray an array of pixel values representing a 2D image in row-major order
+     * @param arrWidth the width of the 2D pixel grid
+     * @param arrHeight the height of the 2D pixel grid
+     * @return an integer array representing the count of pixels in each column that differ
+     *         from the top-left pixel value
+     */
+    private static int[] scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(int[] pixelArray, int arrWidth, int arrHeight) {
         int result[] = new int[arrWidth];
         int topLeftColor = pixelArray[0];
         for (int i = 0; i < arrHeight; i++) {
@@ -92,7 +113,7 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
         return result;
     }
 
-    private static void printTrimmedChars(int[] scannedVertically, int[] pixelArray, int arrWidth, int arrHeight) {
+    private static void detectTrimmedCharsAndRun(int[] scannedVertically, int[] pixelArray, int arrWidth, int arrHeight, DetectedTrimmedShapePredicate predicate) {
         boolean detected = false;
         int startPointer = 0;
         int charactersCount = 0;
@@ -105,89 +126,23 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
             if (detected && scannedVertically[i] == 0) {
                 charactersCount++;
                 detected = false;
-                printArea(startPointer, i-startPointer, pixelArray, arrWidth, arrHeight, "Character " + charactersCount);
+                //printArea(new PixelSubarea(startPointer, i-startPointer, pixelArray, arrWidth, arrHeight, "Character " + charactersCount));
+
+                boolean predicateResult = predicate.test(new PixelShapeContainer(startPointer, i-startPointer, pixelArray, arrWidth, arrHeight, "Character " + charactersCount));
+                if (!predicateResult) {
+                    throw new RuntimeException("While processing detected trimmed character " + charactersCount + " at " + startPointer + " to " + (i-startPointer));
+                }
                 continue;
             }
             if (detected && i ==  scannedVertically.length - 1) {
                 charactersCount++;
                 detected = false;
-                printArea(startPointer, i-startPointer+1, pixelArray, arrWidth, arrHeight, "Character " + charactersCount);
+                //printArea(new PixelSubarea(startPointer, i-startPointer+1, pixelArray, arrWidth, arrHeight, "Character " + charactersCount));
+                boolean predicateResult = predicate.test(new PixelShapeContainer(startPointer, i-startPointer+1, pixelArray, arrWidth, arrHeight, "Character " + charactersCount));
+                if (!predicateResult) {
+                    throw new RuntimeException("While processing detected trimmed character " + charactersCount + " at " + startPointer + " to " + (i-startPointer+1));
+                }
             }
         }
-    }
-
-    private static void printArea(int offset, int areaWidth, int[] pixelArray, int arrWidth, int arrHeight, String message) {
-        //check array params correctness
-        if (pixelArray == null) {
-            log.info("pixelArray is null");
-            return;
-        }
-        if (arrWidth <= 0) {
-            log.info("arrWidth is no more than 0");
-            return;
-        }
-        if (arrHeight <= 0) {
-            log.info("arrHeight is no more than 0");
-            return;
-        }
-        if (pixelArray.length != arrWidth * arrHeight) {
-            log.info("pixelArray is {}", pixelArray.length);
-            log.info("pixelArray length != arrWidth * arrHeight");
-            return;
-        }
-        if (offset >= arrWidth) {
-            log.info("offset >= arrWidth");
-            return;
-        }
-        if (areaWidth > arrWidth) {
-            log.info("areaWidth > arrWidth");
-            return;
-        }
-        log.info(message);
-        int[] subArea = new int[areaWidth*arrHeight];
-        int currentPixelIndex = 0;
-        int subareaPixelIndex = 0;
-        int lineStartIndex;
-        while (subareaPixelIndex < areaWidth*arrHeight) {
-            lineStartIndex = currentPixelIndex;
-            currentPixelIndex += offset;
-            for (int i = 0; i < areaWidth; i++) {
-                //log.info("currentPixelIndex={}, lineStartIndex={}, i={}", currentPixelIndex, lineStartIndex, i);
-                subArea[subareaPixelIndex+i] = pixelArray[currentPixelIndex+i];
-            }
-            subareaPixelIndex += areaWidth;
-            currentPixelIndex = lineStartIndex + arrWidth;
-        }
-        printAreaHumanReadable(areaWidth, arrHeight, subArea);
-        printAreaFlatenedMonoBinary(areaWidth, arrHeight, subArea);
-    }
-
-    private static void printAreaHumanReadable(int areaWidth, int arrHeight, int[] subArea) {
-        for (int i = 0; i < arrHeight; i++) {
-            for (int j = 0; j < areaWidth; j++) {
-                printMonoPixel(subArea[i* areaWidth + j], subArea[0]);
-            }
-            System.out.println();
-        }
-    }
-
-    private static void printAreaFlatenedMonoBinary(int areaWidth, int arrHeight, int[] subArea) {
-        System.out.println("width: " + areaWidth);
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < arrHeight; i++) {
-            for (int j = 0; j < areaWidth; j++) {
-                sb.append(getMonoBinary(subArea[i* areaWidth + j], subArea[0])).append(",");
-            }
-        }
-        System.out.println("public static final int[] CHAR_1 = {" + sb + "};");
-    }
-
-    private static void printMonoPixel(int pixel, int backgroundColor) {
-        char color = pixel == backgroundColor ? ' ' : '#';
-        System.out.print(color);
-    }
-
-    private static char getMonoBinary(int pixel, int backgroundColor) {
-        return pixel == backgroundColor ? '0' : '1';
     }
 }
