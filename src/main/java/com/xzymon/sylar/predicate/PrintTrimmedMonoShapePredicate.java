@@ -1,4 +1,4 @@
-package com.xzymon.sylar.function;
+package com.xzymon.sylar.predicate;
 
 import com.xzymon.sylar.model.PixelShapeContainer;
 import lombok.extern.slf4j.Slf4j;

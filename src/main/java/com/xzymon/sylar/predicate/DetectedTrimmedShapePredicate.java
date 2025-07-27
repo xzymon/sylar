@@ -1,4 +1,4 @@
-package com.xzymon.sylar.function;
+package com.xzymon.sylar.predicate;
 
 import com.xzymon.sylar.model.PixelShapeContainer;
 import org.slf4j.Logger;

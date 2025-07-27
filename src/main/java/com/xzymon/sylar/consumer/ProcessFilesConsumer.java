@@ -16,9 +16,12 @@ public interface ProcessFilesConsumer extends java.util.function.Consumer<PathsD
 
     void accept(PathsDto pathsDto);
 
-    default void moveFile(Path fromPath, String toPathString) {
+    default void moveFile(Path fromPath, String toPathString, String newName) {
         Path processedDirPath = Paths.get(toPathString);
         Path movedFilePath = processedDirPath.resolve(fromPath.getFileName());
+        if (newName != null) {
+            movedFilePath = processedDirPath.resolve(newName);
+        }
         try {
             Files.move(fromPath, movedFilePath);
         } catch (IOException e) {

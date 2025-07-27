@@ -29,7 +29,7 @@ public class StqProcessFilesConsumer implements ProcessFilesConsumer {
             log.info(String.format("Processing file: %1$s", pathsDto.getPathToInputFile().getFileName().toString()));
             CsvOutput csvOutput = processSingleFileForPath(pathsDto.getPathToInputFile());
             log.info(String.format("File %1$s processed.", pathsDto.getPathToInputFile().getFileName().toString()));
-            moveFile(pathsDto.getPathToInputFile(), pathsDto.getLoadingDirectoryProcessed());
+            moveFile(pathsDto.getPathToInputFile(), pathsDto.getLoadingDirectoryProcessed(), null);
             log.info(String.format("File %1$s moved to processed directory.", pathsDto.getPathToInputFile().getFileName().toString()));
             storeInCsvFile(pathsDto.getGeneratedCsvDirectory(), csvOutput);
         } catch (IOException e) {

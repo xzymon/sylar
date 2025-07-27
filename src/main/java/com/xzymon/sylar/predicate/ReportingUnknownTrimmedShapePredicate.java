@@ -1,22 +1,20 @@
-package com.xzymon.sylar.function;
+package com.xzymon.sylar.predicate;
 
-import com.xzymon.sylar.constants.FontSize17FloatingCharacters;
 import com.xzymon.sylar.model.PixelShapeContainer;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
 
 @Slf4j
-public class ReportingUnknownTrimmedShapePredicate extends PrintTrimmedMonoShapePredicate {
-    public static final double TOLERANCE_THRESHOLD_PERCENT = 0.95;
+public abstract class ReportingUnknownTrimmedShapePredicate extends PrintTrimmedMonoShapePredicate {
 
     @Override
     public boolean test(PixelShapeContainer pixelShapeContainer) {
-        printArea(pixelShapeContainer);
+        refineArea(pixelShapeContainer);
         return true;
     }
 
-    private void printArea(PixelShapeContainer pixelShapeContainer) {
+    private void refineArea(PixelShapeContainer pixelShapeContainer) {
         int offset = pixelShapeContainer.getOffset() ;
         int areaWidth = pixelShapeContainer.getAreaWidth();
         int[] pixelArray = pixelShapeContainer.getPixelArray();
@@ -26,11 +24,12 @@ public class ReportingUnknownTrimmedShapePredicate extends PrintTrimmedMonoShape
 
         checkAndLogMessage(pixelShapeContainer, log);
         int[] foregroundShape = getForegroundShape(areaWidth, arrHeight, offset, pixelArray, arrWidth);
-        findShapeInFontOrRaise(foregroundShape, pixelShapeContainer);
+        String foundShape = findShapeInFontOrRaise(foregroundShape, pixelShapeContainer);
+        pixelShapeContainer.getExtractedText().append(foundShape);
     }
 
     private String findShapeInFontOrRaise(int[] foregroundShape, PixelShapeContainer pixelShapeContainer) {
-        Map<int[], String> widthMap = FontSize17FloatingCharacters.WIDTHS_MAP.get(pixelShapeContainer.getAreaWidth());
+        Map<int[], String> widthMap = getWidthsMap().get(pixelShapeContainer.getAreaWidth());
         if (widthMap == null) {
             throw new RuntimeException("Atypical trimmed shape found. There is no map for such width: " + pixelShapeContainer.getAreaWidth());
         }
@@ -39,7 +38,7 @@ public class ReportingUnknownTrimmedShapePredicate extends PrintTrimmedMonoShape
         for (Map.Entry<int[], String> consideredChar : widthMap.entrySet() ) {
             if (consideredChar.getKey().length == foregroundShape.length) {
                 int compliantEntirely = foregroundShape.length;
-                int compliantWithinTolerance = (int) (foregroundShape.length * TOLERANCE_THRESHOLD_PERCENT);
+                int compliantWithinTolerance = (int) (foregroundShape.length * getToleranceThresholdPercent());
                 int maxToleranceDifference = compliantEntirely - compliantWithinTolerance;
                 int toleranceDifference = 0;
                 for (int i = 0; i < consideredChar.getKey().length; i++) {
@@ -51,13 +50,13 @@ public class ReportingUnknownTrimmedShapePredicate extends PrintTrimmedMonoShape
                     }
                 }
                 if (toleranceDifference == 0) {
-                    log.info("Exact match - Found char {} with width {}", consideredChar.getValue(), pixelShapeContainer.getAreaWidth());
+                    log.debug("Exact match - Found char {} with width {}", consideredChar.getValue(), pixelShapeContainer.getAreaWidth());
                     return consideredChar.getValue();
                 }
                 if (toleranceDifference <= maxToleranceDifference) {
-                    log.info("Match within tolerance - Found char {} with width {}. toleranceDifference / compliantEntirely = {} / {}", consideredChar.getValue(), pixelShapeContainer.getAreaWidth(), toleranceDifference, foregroundShape.length);
-                    log.info("Matched char: {}", consideredChar.getValue());
-                    log.info("Will continue to find even better match...");
+                    log.debug("Match within tolerance - Found char {} with width {}. toleranceDifference / compliantEntirely = {} / {}", consideredChar.getValue(), pixelShapeContainer.getAreaWidth(), toleranceDifference, foregroundShape.length);
+                    log.debug("Matched char: {}", consideredChar.getValue());
+                    log.debug("Will continue to find even better match...");
                     matchWithinTolerance = true;
                     matchWithinToleranceChar = consideredChar.getValue();
                 }
@@ -66,10 +65,10 @@ public class ReportingUnknownTrimmedShapePredicate extends PrintTrimmedMonoShape
             }
         }
         if (matchWithinTolerance) {
-            log.info("No exact match. Found match within tolerance - Found char {} with width {}", matchWithinToleranceChar, pixelShapeContainer.getAreaWidth());
+            log.debug("No exact match. Found match within tolerance - Found char {} with width {}", matchWithinToleranceChar, pixelShapeContainer.getAreaWidth());
             return matchWithinToleranceChar;
         }
-        log.info("No match found for shape {} with width {}", foregroundShape, pixelShapeContainer.getAreaWidth());
+        log.error("No match found for shape {} with width {}", foregroundShape, pixelShapeContainer.getAreaWidth());
         printShapeHumanReadable(pixelShapeContainer.getAreaWidth(), pixelShapeContainer.getArrHeight(), foregroundShape);
         printShapeFlatenedMonoBinary(pixelShapeContainer.getAreaWidth(), pixelShapeContainer.getArrHeight(), foregroundShape);
         throw new RuntimeException("No match found for shape. See the logs above. Can't continue.");
@@ -78,4 +77,8 @@ public class ReportingUnknownTrimmedShapePredicate extends PrintTrimmedMonoShape
     int translateToMonoBinaryPixel(int pixel, int backgroundColor) {
         return pixel == backgroundColor ? 0 : 1;
     }
+
+    abstract double getToleranceThresholdPercent();
+
+    abstract Map<Integer, Map<int[], String>> getWidthsMap();
 }

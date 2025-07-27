@@ -12,4 +12,5 @@ public class PixelShapeContainer {
     private int arrWidth;
     private int arrHeight;
     private String message;
+    private StringBuilder extractedText;
 }

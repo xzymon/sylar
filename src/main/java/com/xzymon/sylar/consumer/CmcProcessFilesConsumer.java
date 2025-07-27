@@ -1,12 +1,17 @@
 package com.xzymon.sylar.consumer;
 
-import com.xzymon.sylar.function.DetectedTrimmedShapePredicate;
-import com.xzymon.sylar.function.PrintTrimmedMonoShapePredicate;
-import com.xzymon.sylar.function.ReportingUnknownTrimmedShapePredicate;
+import com.xzymon.sylar.constants.IntervalHelper;
+import com.xzymon.sylar.constants.MonthPlMapping;
+import com.xzymon.sylar.constants.ValorNameHelper;
+import com.xzymon.sylar.constants.marker.MarkerCharacter;
+import com.xzymon.sylar.predicate.*;
 import com.xzymon.sylar.helper.PathsDto;
+import com.xzymon.sylar.model.CmcRawDataContainer;
 import com.xzymon.sylar.model.FrameCoords;
 import com.xzymon.sylar.model.PixelShapeContainer;
+import com.xzymon.sylar.model.TextPixelFlattenedArea;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.imageio.ImageIO;
@@ -16,22 +21,32 @@ import java.io.IOException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
 @Component
 @Slf4j
 public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
+
+    @Value("${default.year}")
+    private Integer defaultYearForNewFilename;
+
+    @Value("${processing.files.rename}")
+    private boolean renameFiles;
+
+
     @Override
     public void accept(PathsDto pathsDto) {
         log.info(String.format("Processing file: %1$s", pathsDto.getPathToInputFile().getFileName().toString()));
         //CsvOutput csvOutput = processSingleFileForPath(pathsDto.getPathToInputFile());
+        CmcRawDataContainer rawDataContainer = new CmcRawDataContainer();
         try {
-            storeInPngFile(pathsDto.getPathToInputFile(), pathsDto.getGeneratedPngDirectory());
+            storeInPngFile(rawDataContainer, pathsDto.getPathToInputFile(), pathsDto.getGeneratedPngDirectory());
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
         log.info(String.format("File %1$s processed.", pathsDto.getPathToInputFile().getFileName().toString()));
-        moveFile(pathsDto.getPathToInputFile(), pathsDto.getLoadingDirectoryProcessed());
+        moveFile(pathsDto.getPathToInputFile(), pathsDto.getLoadingDirectoryProcessed(), rawDataContainer.getPngFileNewName());
         log.info(String.format("File %1$s moved to processed directory.", pathsDto.getPathToInputFile().getFileName().toString()));
         //storeInCsvFile(pathsDto.getGeneratedCsvDirectory(), csvOutput);
     }
@@ -44,27 +59,34 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
         return stockImageProcessingService.toCsvOutput(container);
     }*/
 
-    private void storeInPngFile(Path inputPath, String genPngDir) throws IOException {
+    private CmcRawDataContainer storeInPngFile(CmcRawDataContainer rawDataContainer, Path inputPath, String genPngDir) throws IOException {
         log.info("Processing file: " + inputPath.toString());
         BufferedImage image = ImageIO.read(new File(inputPath.toString()));
 
-        FrameCoords snapshotDateTimeFC = new FrameCoords( 9, 253, 37, 33);
-        int[] snapshotDateTimePixels = extractFrameAsImage("snapshotDateTime", snapshotDateTimeFC, genPngDir, image);
+        rawDataContainer.setSourceFileName(inputPath.getFileName().toString());
 
-        int arrWidth = snapshotDateTimeFC.getRight() - snapshotDateTimeFC.getLeft();
-        int arrHeight = snapshotDateTimeFC.getBottom() - snapshotDateTimeFC.getTop();
-        int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(snapshotDateTimePixels, arrWidth, arrHeight);
-        //detectTrimmedCharsAndRun(scannedVertically, snapshotDateTimePixels, arrWidth, arrHeight, new PrintTrimmedMonoShapePredicate());
-        detectTrimmedCharsAndRun(scannedVertically, snapshotDateTimePixels, arrWidth, arrHeight, new ReportingUnknownTrimmedShapePredicate());
-        //printArea(0, 12, snapshotDateTimePixels, arrWidth, arrHeight, "First char");
+        FrameCoords snapshotDateTimeFC = new FrameCoords( 9, 300, 37, 33);
+        extractSnapshotDateTimeAreaInDataContainer(rawDataContainer, snapshotDateTimeFC, image);
+
+        FrameCoords notChartMarkerFC = new FrameCoords( 77, 90, 120, 35);
+        determineIfIsNotChartMarker(rawDataContainer, notChartMarkerFC, image);
+
+        // dalsze pobieranie danych nie ma sensu jeżeli to jednak nie jest prawidłowy obraz z wykresem
+        if (!rawDataContainer.isNotChart()) {
+            FrameCoords valorNameFC = new FrameCoords(165, 182, 201, 30);
+            extractValorNameAreaInDataContainer(rawDataContainer, valorNameFC, image);
+
+            FrameCoords intervalLine1FC = new FrameCoords(1941, 101, 1963, 66);
+            extractIntervalLine1AreaInDataContainer(rawDataContainer, intervalLine1FC, image);
+
+            FrameCoords intervalLine2FC = new FrameCoords(1974, 113, 1991, 66);
+            extractIntervalLine2AreaInDataContainer(rawDataContainer, intervalLine2FC, image);
+
+            if (renameFiles) {
+                preparePngNewName(rawDataContainer);
+            }
 
         /*
-        FrameCoords valorNameFC = new FrameCoords( 165, 174, 200, 31);
-        int[] valorNamePixels = extractFrameAsImage("valorName", valorNameFC, genPngDir, image);
-
-        FrameCoords intervalFC = new FrameCoords( 1941, 114, 1992, 66);
-        int[] intervalPixels = extractFrameAsImage("interval", intervalFC, genPngDir, image);
-
         FrameCoords valuesFC = new FrameCoords( 381, 1852, 1897, 0);
         int[] valuesPixels = extractFrameAsImage("values", valuesFC, genPngDir, image);
 
@@ -77,6 +99,107 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
         FrameCoords horizontalGaugesFC = new FrameCoords( 414, 1852, 1890, 1739);
         int[] horizontalGaugesPixels = extractFrameAsImage("horizontalGauges", horizontalGaugesFC, genPngDir, image);
          */
+        } else {
+            if (renameFiles) {
+                String ordinalNumber = rawDataContainer.getSourceFileName().substring(3, 8);
+                String proposedNewName = String.format("nc_%1$s%2$s.png", rawDataContainer.getDateTimePartForNewFileName(), ordinalNumber);
+                rawDataContainer.setPngFileNewName(proposedNewName);
+            }
+        }
+        return rawDataContainer;
+    }
+
+    private void preparePngNewName(CmcRawDataContainer rawDataContainer) {
+        String datePart = rawDataContainer.getDateTimePartForNewFileName();
+        String rawValorNameText = rawDataContainer.getValorNameArea().getExtractedText();
+        String rawIntevalLine1 = rawDataContainer.getIntervalLine1Area().getExtractedText();
+        String rawIntevalLine2 = rawDataContainer.getIntervalLine2Area().getExtractedText();
+
+        if (rawValorNameText != null && rawIntevalLine1 != null && rawIntevalLine2 != null) {
+            String mappedValorNameText = ValorNameHelper.VALOR_NAME_MAP.get(rawValorNameText);
+            if (mappedValorNameText == null) {
+                throw new RuntimeException("Unknown valor name text: " + rawValorNameText);
+            }
+            String mappedIntervalLine1 = IntervalHelper.LENGTHS_MAP.get(rawIntevalLine1);
+            if (mappedIntervalLine1 == null) {
+                throw new RuntimeException("Unknown interval line 1 text: " + rawIntevalLine1);
+            }
+            String mappedIntervalLine2 = IntervalHelper.UNITS_MAP.get(rawIntevalLine2);
+            if (mappedIntervalLine2 == null) {
+                throw new RuntimeException("Unknown interval line 2 text: " + rawIntevalLine2);
+            }
+            String extractedOrdinalNumber = rawDataContainer.getSourceFileName().substring(3, 8);
+            String newValue = mappedValorNameText + "_b" + mappedIntervalLine1 + mappedIntervalLine2 + "_" + datePart + extractedOrdinalNumber + ".png";
+            rawDataContainer.setPngFileNewName(newValue);
+        }
+    }
+
+    private void extractSnapshotDateTimeAreaInDataContainer(CmcRawDataContainer rawDataContainer, FrameCoords frameCoords, BufferedImage image) throws IOException {
+        rawDataContainer.setSnapshotDateTimeFC(frameCoords);
+        TextPixelFlattenedArea snapshotDateTimeArea = rawDataContainer.getSnapshotDateTimeArea();
+        //snapshotDateTimeArea.setPixelArea(extractFrameAsImage("snapshotDateTime", rawDataContainer.getSnapshotDateTimeFC(), genPngDir, image));
+        snapshotDateTimeArea.setPixelArea(extractPixelsFromFrame(rawDataContainer.getSnapshotDateTimeFC(), image));
+        snapshotDateTimeArea.setXLength(frameCoords.getRight() - frameCoords.getLeft());
+        snapshotDateTimeArea.setYLength(frameCoords.getBottom() - frameCoords.getTop());
+        int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(snapshotDateTimeArea);
+        String detectedText = detectTrimmedCharsAndRun(scannedVertically, snapshotDateTimeArea, new FontSize17ReportingUnknownTrimmedShapePredicate());
+        snapshotDateTimeArea.setExtractedText(detectedText);
+        String[] splitted = detectedText.split(" ");
+        if (splitted.length == 4) {
+            LocalTime localTime = LocalTime.parse(splitted[0], DateTimeFormatter.ofPattern("HH:mm"));
+            Integer day = Integer.parseInt(splitted[2]);
+            Integer month = MonthPlMapping.MAC_MMM_TO_INT.get(splitted[3]);
+            LocalDateTime snapshotDateTime = LocalDateTime.of(defaultYearForNewFilename, month, day, localTime.getHour(), localTime.getMinute());
+            rawDataContainer.setDateTimePartForNewFileName(DateTimeFormatter.ofPattern("yyyyMMdd").format(snapshotDateTime) + "T" + DateTimeFormatter.ofPattern("HHmm").format(snapshotDateTime));
+        }
+    }
+
+    private static void determineIfIsNotChartMarker(CmcRawDataContainer rawDataContainer, FrameCoords frameCoords, BufferedImage image) throws IOException {
+        rawDataContainer.setNotChartMarkerFC(frameCoords);
+        TextPixelFlattenedArea notChartMarkerArea = rawDataContainer.getNotChartMarkerArea();
+        notChartMarkerArea.setPixelArea(extractPixelsFromFrame(rawDataContainer.getNotChartMarkerFC(), image));
+        notChartMarkerArea.setXLength(frameCoords.getRight() - frameCoords.getLeft());
+        notChartMarkerArea.setYLength(frameCoords.getBottom() - frameCoords.getTop());
+        int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(notChartMarkerArea);
+        try {
+            String detectedText = detectTrimmedCharsAndRun(scannedVertically, notChartMarkerArea, new MarkerReportingUnknownTrimmedShapePredicate());
+            rawDataContainer.setNotChart(detectedText.equals(MarkerCharacter.NOT_CHART));
+        } catch (RuntimeException e) {
+            rawDataContainer.setNotChart(false);
+        }
+    }
+
+    private static void extractValorNameAreaInDataContainer(CmcRawDataContainer rawDataContainer, FrameCoords frameCoords, BufferedImage image) throws IOException {
+        rawDataContainer.setValorNameFC(frameCoords);
+        TextPixelFlattenedArea valorNameArea = rawDataContainer.getValorNameArea();
+        valorNameArea.setPixelArea(extractPixelsFromFrame(rawDataContainer.getValorNameFC(), image));
+        valorNameArea.setXLength(frameCoords.getRight() - frameCoords.getLeft());
+        valorNameArea.setYLength(frameCoords.getBottom() - frameCoords.getTop());
+        int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(valorNameArea);
+        String detectedText = detectTrimmedCharsAndRun(scannedVertically, valorNameArea, new FontSize27ReportingUnknownTrimmedShapePredicate());
+        valorNameArea.setExtractedText(detectedText);
+    }
+
+    private static void extractIntervalLine1AreaInDataContainer(CmcRawDataContainer rawDataContainer, FrameCoords frameCoords, BufferedImage image) throws IOException {
+        rawDataContainer.setIntervalLine1FC(frameCoords);
+        TextPixelFlattenedArea intervalLine1Area = rawDataContainer.getIntervalLine1Area();
+        intervalLine1Area.setPixelArea(extractPixelsFromFrame(rawDataContainer.getIntervalLine1FC(), image));
+        intervalLine1Area.setXLength(frameCoords.getRight() - frameCoords.getLeft());
+        intervalLine1Area.setYLength(frameCoords.getBottom() - frameCoords.getTop());
+        int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(intervalLine1Area);
+        String detectedText = detectTrimmedCharsAndRun(scannedVertically, intervalLine1Area, new FontSize22ReportingUnknownTrimmedShapePredicate());
+        intervalLine1Area.setExtractedText(detectedText);
+    }
+
+    private static void extractIntervalLine2AreaInDataContainer(CmcRawDataContainer rawDataContainer, FrameCoords frameCoords, BufferedImage image) throws IOException {
+        rawDataContainer.setIntervalLine2FC(frameCoords);
+        TextPixelFlattenedArea intervalLine2Area = rawDataContainer.getIntervalLine2Area();
+        intervalLine2Area.setPixelArea(extractPixelsFromFrame(rawDataContainer.getIntervalLine2FC(), image));
+        intervalLine2Area.setXLength(frameCoords.getRight() - frameCoords.getLeft());
+        intervalLine2Area.setYLength(frameCoords.getBottom() - frameCoords.getTop());
+        int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(intervalLine2Area);
+        String detectedText = detectTrimmedCharsAndRun(scannedVertically, intervalLine2Area, new FontSize16ReportingUnknownTrimmedShapePredicate());
+        intervalLine2Area.setExtractedText(detectedText);
     }
 
     private static int[] extractFrameAsImage(String fileName, FrameCoords frameCoords, String genPngDir, BufferedImage image) throws IOException {
@@ -87,6 +210,15 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
         Path snapshotDateTimePath = Paths.get(genPngDir, fileName + "_" + currentTimestamp + "." + formatName);
         //ImageIO.write(subimage, formatName, new File(snapshotDateTimePath.toString()));
         return subimage.getRGB(0, 0, subimage.getWidth(), subimage.getHeight(), null, 0, subimage.getWidth());
+    }
+
+    private static int[] extractPixelsFromFrame(FrameCoords frameCoords, BufferedImage image) throws IOException {
+        BufferedImage subimage = image.getSubimage(frameCoords.getLeft(), frameCoords.getTop(), frameCoords.getRight() - frameCoords.getLeft(), frameCoords.getBottom() - frameCoords.getTop());
+        return subimage.getRGB(0, 0, subimage.getWidth(), subimage.getHeight(), null, 0, subimage.getWidth());
+    }
+
+    private static int[] scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(TextPixelFlattenedArea tpfArea) {
+        return scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(tpfArea.getPixelArea(), tpfArea.getXLength(), tpfArea.getYLength());
     }
 
     /**
@@ -113,14 +245,30 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
         return result;
     }
 
-    private static void detectTrimmedCharsAndRun(int[] scannedVertically, int[] pixelArray, int arrWidth, int arrHeight, DetectedTrimmedShapePredicate predicate) {
+    private static String detectTrimmedCharsAndRun(int[] scannedVertically, TextPixelFlattenedArea tpfArea, DetectedTrimmedShapePredicate predicate) {
+        return detectTrimmedCharsAndRun(scannedVertically, tpfArea.getPixelArea(), tpfArea.getXLength(), tpfArea.getYLength(),  predicate);
+    }
+
+    private static String detectTrimmedCharsAndRun(int[] scannedVertically, int[] pixelArray, int arrWidth, int arrHeight, DetectedTrimmedShapePredicate predicate) {
         boolean detected = false;
         int startPointer = 0;
         int charactersCount = 0;
+        int gapWhiteSpaceInsertMinLen = 5;
+        int gapLength = 0;
+        StringBuilder sharedSB = new StringBuilder();
         for (int i = 0; i < scannedVertically.length; i++) {
-            if (!detected && scannedVertically[i] > 0) {
-                startPointer = i;
-                detected = true;
+            if (!detected) {
+                if (scannedVertically[i] > 0) {
+                    if (gapLength >= gapWhiteSpaceInsertMinLen && sharedSB.length() > 0) {
+                        log.info("Injecting whitespace " + sharedSB);
+                        sharedSB.append(" ");
+                    }
+                    startPointer = i;
+                    detected = true;
+                    gapLength = 0;
+                } else {
+                    gapLength++;
+                }
                 continue;
             }
             if (detected && scannedVertically[i] == 0) {
@@ -128,7 +276,7 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
                 detected = false;
                 //printArea(new PixelSubarea(startPointer, i-startPointer, pixelArray, arrWidth, arrHeight, "Character " + charactersCount));
 
-                boolean predicateResult = predicate.test(new PixelShapeContainer(startPointer, i-startPointer, pixelArray, arrWidth, arrHeight, "Character " + charactersCount));
+                boolean predicateResult = predicate.test(new PixelShapeContainer(startPointer, i-startPointer, pixelArray, arrWidth, arrHeight, "Character " + charactersCount, sharedSB));
                 if (!predicateResult) {
                     throw new RuntimeException("While processing detected trimmed character " + charactersCount + " at " + startPointer + " to " + (i-startPointer));
                 }
@@ -138,11 +286,15 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
                 charactersCount++;
                 detected = false;
                 //printArea(new PixelSubarea(startPointer, i-startPointer+1, pixelArray, arrWidth, arrHeight, "Character " + charactersCount));
-                boolean predicateResult = predicate.test(new PixelShapeContainer(startPointer, i-startPointer+1, pixelArray, arrWidth, arrHeight, "Character " + charactersCount));
+                boolean predicateResult = predicate.test(new PixelShapeContainer(startPointer, i-startPointer+1, pixelArray, arrWidth, arrHeight, "Character " + charactersCount, sharedSB));
                 if (!predicateResult) {
                     throw new RuntimeException("While processing detected trimmed character " + charactersCount + " at " + startPointer + " to " + (i-startPointer+1));
                 }
             }
         }
+        if (sharedSB.length() > 0) {
+            log.info("Detected shared string: " + sharedSB);
+        }
+        return sharedSB.toString();
     }
 }
