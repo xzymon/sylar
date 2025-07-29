@@ -19,9 +19,17 @@ public class CmcRawDataContainer {
 
     private FrameCoords snapshotDateTimeFC;
     private TextPixelFlattenedArea snapshotDateTimeArea;
+
     private FrameCoords notChartMarkerFC;                 //obszar po którym sprawdzam czy to jednak nie jest wykres
     private TextPixelFlattenedArea notChartMarkerArea;
     private boolean isNotChart;
+
+    private FrameCoords toolboxMarkerFC;                 //obszar po którym sprawdzam czy wykres ma wyświetlone narzędzia rysowania
+    private TextPixelFlattenedArea toolboxMarkerArea;
+    private boolean toolboxFlag;
+
+    private boolean narrowFlag;
+    private boolean wideFlag;
 
     private String dateTimePartForNewFileName;
     private String pngFileNewName;
@@ -32,6 +40,9 @@ public class CmcRawDataContainer {
     private TextPixelFlattenedArea intervalLine1Area;
     private FrameCoords intervalLine2FC;                 //interval - 2 linia - sek / m
     private TextPixelFlattenedArea intervalLine2Area;
+
+    private FrameCoords intervalOptionsFC;               //interval - gdy wyświetlony jest tekst "Opcje"
+    private TextPixelFlattenedArea intervalOptionsArea;
 
     private Map<Integer, TextPixelArea> horizontalGauges;//mapa dla prowadnic poziomych - obszar obrazu do ekstrakcji tekstu
     private Map<Integer, TextPixelArea> verticalGauges;  //mapa dla prowadnic pionowych - obszar obrazu do ekstrakcji tekstu
@@ -50,6 +61,14 @@ public class CmcRawDataContainer {
         this.notChartMarkerFC = new FrameCoords();
         this.notChartMarkerArea = new TextPixelFlattenedArea();
         this.isNotChart = false;
+
+        this.toolboxMarkerFC = new FrameCoords();
+        this.toolboxMarkerArea = new TextPixelFlattenedArea();
+        this.toolboxFlag = false;
+
+        this.narrowFlag = false;
+        this.wideFlag = false;
+
         this.pngFileNewName = null;                     //bieda kod - ale niech będzie jawne że domyślnie null
         this.valorNameFC = new FrameCoords();
         this.valorNameArea = new TextPixelFlattenedArea();
@@ -57,6 +76,8 @@ public class CmcRawDataContainer {
         this.intervalLine1Area = new TextPixelFlattenedArea();
         this.intervalLine2FC = new FrameCoords();
         this.intervalLine2Area = new TextPixelFlattenedArea();
+        this.intervalOptionsFC = new FrameCoords();
+        this.intervalOptionsArea = new TextPixelFlattenedArea();
         this.horizontalGauges = new HashMap<>();
         this.textToVG = new HashMap<>();
         this.verticalGauges = new HashMap<>();

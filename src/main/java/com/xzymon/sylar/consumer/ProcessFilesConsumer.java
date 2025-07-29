@@ -20,10 +20,12 @@ public interface ProcessFilesConsumer extends java.util.function.Consumer<PathsD
         Path processedDirPath = Paths.get(toPathString);
         Path movedFilePath = processedDirPath.resolve(fromPath.getFileName());
         if (newName != null) {
+            LOGGER.info(String.format("Will try to change file name %1$s -> %2$s", fromPath.getFileName(), newName));
             movedFilePath = processedDirPath.resolve(newName);
         }
         try {
             Files.move(fromPath, movedFilePath);
+            LOGGER.info(String.format("File %1$s moved to %2$s", fromPath.getFileName(), toPathString));
         } catch (IOException e) {
             LOGGER.error("Error when moving file {}", fromPath.getFileName().toString());
             throw new RuntimeException(e);

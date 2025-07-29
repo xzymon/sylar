@@ -8,5 +8,6 @@ public class ValorNameHelper {
 
     static {
         VALOR_NAME_MAP.put("USD/JPY", "USDJPY");
+        VALOR_NAME_MAP.put("USD/PLN", "USDPLN");
     }
 }

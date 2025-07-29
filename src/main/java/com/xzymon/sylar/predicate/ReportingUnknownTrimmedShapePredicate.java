@@ -21,10 +21,32 @@ public abstract class ReportingUnknownTrimmedShapePredicate extends PrintTrimmed
         int arrWidth = pixelShapeContainer.getArrWidth();
         int arrHeight = pixelShapeContainer.getArrHeight();
         String message = pixelShapeContainer.getMessage();
+        Map<Integer, Integer> replaceColorsMap = pixelShapeContainer.getReplaceColors();
 
         checkAndLogMessage(pixelShapeContainer, log);
+
+        int[] copyOfPixelArray = new int[pixelArray.length];
+        System.arraycopy(pixelArray, 0, copyOfPixelArray, 0, pixelArray.length);
+        if (replaceColorsMap != null && !replaceColorsMap.isEmpty()) {
+            for (Map.Entry<Integer, Integer> replaceColor : replaceColorsMap.entrySet()) {
+                for (int i = 0; i < pixelArray.length; i++) {
+                    if (pixelArray[i] == replaceColor.getKey()) {
+                        pixelArray[i] = replaceColor.getValue();
+                    }
+                }
+            }
+        }
+        /**
+         * ponieważ położenie shape (czyli utworzenie pixelShapeContainer) jest ustalane jeszcze zanim zostanie wykonane
+         * przemapowywanie kolorów (bo pixelShapeContainer jest argumentem metody, a przemapowywanie jest już w metodzie)
+         * w związku z tym może się okazać że shape zostanie "wygumkowany" w całości przy przemapowywaniu
+         * w rezultacie czego mogą się pojawić dziwolągi (niewidzialne znaki) które będą wymagały dostarczenia w odpowiednim FontSizeXX
+         * pomimo że będą tak naprawdę puste.
+         * Cóż - takie koszty podążania przyjętym algorytmem - może on wymagać małego hackowania - ale nie jest to wielki problem.
+         */
         int[] foregroundShape = getForegroundShape(areaWidth, arrHeight, offset, pixelArray, arrWidth);
         String foundShape = findShapeInFontOrRaise(foregroundShape, pixelShapeContainer);
+        pixelShapeContainer.setPixelArray(copyOfPixelArray); //przywrócenie stanu sprzed modyfikacji z replaceColorsMap
         pixelShapeContainer.getExtractedText().append(foundShape);
     }
 

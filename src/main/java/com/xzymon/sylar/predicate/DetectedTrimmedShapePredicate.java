@@ -51,6 +51,17 @@ public interface DetectedTrimmedShapePredicate extends Predicate<PixelShapeConta
         if (flag) throw new RuntimeException("Detected trimmed chars predicate failed. See logs above.");
     }
 
+    /**
+     * Zakładając, że litera lub cyfra lub znak specjalny (lub ich zlepek) to pojedynczy symbol
+     * - ta metoda wycina ten symbol z całego obszaru dostarczonego w pixelArray
+     *
+     * @param areaWidth the width of the area to extract from the pixel array
+     * @param arrHeight the height of the area to extract from the pixel array
+     * @param offset the horizontal offset applied to each subsequent row while extracting data
+     * @param pixelArray the original pixel array representing the complete image
+     * @param arrWidth the width of the original pixel array
+     * @return an array of integers containing the extracted pixel data
+     */
     default int[] getForegroundShape(int areaWidth, int arrHeight, int offset, int[] pixelArray, int arrWidth) {
         int[] subArea = new int[areaWidth * arrHeight];
         int currentPixelIndex = 0;
