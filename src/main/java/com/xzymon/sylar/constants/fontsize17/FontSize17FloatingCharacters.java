@@ -77,6 +77,7 @@ public class FontSize17FloatingCharacters {
         WIDTH_9_MAP.put(FontSize17Width09.MONO_LETTER_LOWER_T_W9_A, "t");
 
         WIDTH_11_MAP.put(FontSize17Width11.MONO_LETTER_LOWER_A_W11_A, "a");
+        WIDTH_11_MAP.put(FontSize17Width11.MONO_LETTER_LOWER_S_W11_A, "s");
         WIDTH_11_MAP.put(FontSize17Width11.MONO_LETTER_LOWER_Z_W11_A, "z");
 
         WIDTH_12_MAP.put(FontSize17Width12.MONO_DIGIT_2_W12_A, "2");
@@ -100,6 +101,7 @@ public class FontSize17FloatingCharacters {
         WIDTH_13_MAP.put(FontSize17Width13.MONO_DIGIT_9_W13_A, "9");
         WIDTH_13_MAP.put(FontSize17Width13.MONO_LETTER_UPPER_P_W13_A, "P");
         WIDTH_13_MAP.put(FontSize17Width13.MONO_LETTER_LOWER_B_W13_A, "b");
+        WIDTH_13_MAP.put(FontSize17Width13.MONO_LETTER_LOWER_C_W13_A, "c");
         WIDTH_13_MAP.put(FontSize17Width13.MONO_LETTER_LOWER_D_W13_A, "d");
         WIDTH_13_MAP.put(FontSize17Width13.MONO_LETTER_LOWER_E_W13_A, "e");
         WIDTH_13_MAP.put(FontSize17Width13.MONO_LETTER_LOWER_O_W13_A, "o");

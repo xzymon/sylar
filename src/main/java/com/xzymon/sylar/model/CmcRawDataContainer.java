@@ -31,6 +31,11 @@ public class CmcRawDataContainer {
     private boolean narrowFlag;
     private boolean wideFlag;
 
+
+
+
+
+
     private String dateTimePartForNewFileName;
     private String pngFileNewName;
 

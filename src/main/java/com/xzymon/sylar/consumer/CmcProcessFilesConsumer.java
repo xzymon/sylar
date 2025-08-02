@@ -209,7 +209,8 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
     private static void determineIfIsToolboxMarker(CmcRawDataContainer rawDataContainer, FrameCoords frameCoords, BufferedImage image) throws IOException {
         rawDataContainer.setToolboxMarkerFC(frameCoords);
         TextPixelFlattenedArea toolboxMarkerArea = rawDataContainer.getToolboxMarkerArea();
-        toolboxMarkerArea.setPixelArea(extractPixelsFromFrame(rawDataContainer.getToolboxMarkerFC(), image));
+        int[] pixelArea = extractPixelsFromFrame(rawDataContainer.getToolboxMarkerFC(), image);
+        toolboxMarkerArea.setPixelArea(recolorAllWithMap(getFF121212RecoloringMap(), pixelArea));
         toolboxMarkerArea.setXLength(frameCoords.getRight() - frameCoords.getLeft());
         toolboxMarkerArea.setYLength(frameCoords.getBottom() - frameCoords.getTop());
         int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(toolboxMarkerArea);
@@ -236,7 +237,8 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
     private static void extractIntervalLine1AreaInDataContainer(CmcRawDataContainer rawDataContainer, FrameCoords frameCoords, BufferedImage image) throws IOException {
         rawDataContainer.setIntervalLine1FC(frameCoords);
         TextPixelFlattenedArea intervalLine1Area = rawDataContainer.getIntervalLine1Area();
-        intervalLine1Area.setPixelArea(extractPixelsFromFrame(rawDataContainer.getIntervalLine1FC(), image));
+        int[] pixelArea = extractPixelsFromFrame(rawDataContainer.getIntervalLine1FC(), image);
+        intervalLine1Area.setPixelArea(recolorAllWithMap(getFF121212RecoloringMap(), pixelArea));
         intervalLine1Area.setXLength(frameCoords.getRight() - frameCoords.getLeft());
         intervalLine1Area.setYLength(frameCoords.getBottom() - frameCoords.getTop());
         int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(intervalLine1Area);
@@ -248,7 +250,8 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
     private static void extractIntervalLine2AreaInDataContainer(CmcRawDataContainer rawDataContainer, FrameCoords frameCoords, BufferedImage image) throws IOException {
         rawDataContainer.setIntervalLine2FC(frameCoords);
         TextPixelFlattenedArea intervalLine2Area = rawDataContainer.getIntervalLine2Area();
-        intervalLine2Area.setPixelArea(extractPixelsFromFrame(rawDataContainer.getIntervalLine2FC(), image));
+        int[] pixelArea = extractPixelsFromFrame(rawDataContainer.getIntervalLine2FC(), image);
+        intervalLine2Area.setPixelArea(recolorAllWithMap(getFF121212RecoloringMap(), pixelArea));
         intervalLine2Area.setXLength(frameCoords.getRight() - frameCoords.getLeft());
         intervalLine2Area.setYLength(frameCoords.getBottom() - frameCoords.getTop());
         int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(intervalLine2Area);
@@ -291,6 +294,21 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
 
     private static int[] scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(TextPixelFlattenedArea tpfArea) {
         return scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(tpfArea.getPixelArea(), tpfArea.getXLength(), tpfArea.getYLength());
+    }
+
+    private static int[] recolorAllWithMap(Map<Integer, Integer> recolorMap, int[] pixelArea) {
+        int[] recoloredArray = new int[pixelArea.length];
+        System.arraycopy(pixelArea, 0, recoloredArray, 0, pixelArea.length);
+        for (Map.Entry<Integer, Integer> entry : recolorMap.entrySet()) {
+            int colorToReplace = entry.getKey();
+            int colorToReplaceWith = entry.getValue();
+            for (int i = 0; i < recoloredArray.length; i++) {
+                if (recoloredArray[i] == colorToReplace) {
+                    recoloredArray[i] = colorToReplaceWith;
+                }
+            }
+        }
+        return recoloredArray;
     }
 
     /**
@@ -368,5 +386,18 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
             log.info("Detected shared string in brackets: [" + sharedSB + "]");
         }
         return sharedSB.toString();
+    }
+
+    private static Map<Integer, Integer> getFF121212RecoloringMap() {
+        return Map.of(
+                // przemapowywanie szarego tła na efektywnie monochromatyczne tło
+                -15592941, -15592942,        // -15592941 = 0xff121213 ; #121213 -> #121212 -> #000
+                -15592686, -15592942,        // -15592686 = 0xff121312 ; #121312 -> #121212 -> #000
+                -15592685, -15592942,        // -15592685 = 0xff121313 ; #121313 -> #121212 -> #000
+                -15527406, -15592942,        // -15527406 = 0xff131212 ; #131212 -> #121212 -> #000
+                -15527405, -15592942,        // -15527406 = 0xff131212 ; #131213 -> #121212 -> #000
+                -15527150, -15592942,        // -15527150 = 0xff131312 ; #131312 -> #121212 -> #000
+                -15527149, -15592942        // -15527150 = 0xff131313 ; #131313 -> #121212 -> #000
+        );
     }
 }
