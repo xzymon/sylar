@@ -3,16 +3,14 @@ package com.xzymon.sylar.model;
 import lombok.Data;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Data
 public class CmcRawDataContainer {
     private String sourceFileName;
 
     private FrameCoords valuesFrame;                     //granice wykresu notowań
+    private boolean valuesFrameFlag;
     private FrameCoords valueSeriesExtremalPoints;       //typ nie do końca pasuje, sama obecność tego jest dla celów optymalizacji
     private List<RawValueInBuckets> valuesPerHorizontal; //notowania (liczone kubełkmi)
     private List<VerticalLineBucket> valueVLBuckets;     //kubełki (odpowiadające liniom) dla notowań
@@ -34,8 +32,6 @@ public class CmcRawDataContainer {
 
 
 
-
-
     private String dateTimePartForNewFileName;
     private String pngFileNewName;
 
@@ -49,9 +45,8 @@ public class CmcRawDataContainer {
     private FrameCoords intervalOptionsFC;               //interval - gdy wyświetlony jest tekst "Opcje"
     private TextPixelFlattenedArea intervalOptionsArea;
 
-    private Map<Integer, TextPixelArea> horizontalGauges;//mapa dla prowadnic poziomych - obszar obrazu do ekstrakcji tekstu
-    private Map<Integer, TextPixelArea> verticalGauges;  //mapa dla prowadnic pionowych - obszar obrazu do ekstrakcji tekstu
-    private Map<String, Integer> textToVG;
+    private Map<Integer, TextPixelFlattenedArea> horizontalGauges;//mapa dla prowadnic poziomych - obszar obrazu do ekstrakcji tekstu
+    private Map<Integer, TextPixelFlattenedArea> verticalGauges;  //mapa dla prowadnic pionowych - obszar obrazu do ekstrakcji tekstu
 
     private Map<Integer, BigDecimal> horizontalValuesMap;//mapowanie położenia na wykresie na wartość
     private List<RawDataNipponCandle> candles;
@@ -84,7 +79,6 @@ public class CmcRawDataContainer {
         this.intervalOptionsFC = new FrameCoords();
         this.intervalOptionsArea = new TextPixelFlattenedArea();
         this.horizontalGauges = new HashMap<>();
-        this.textToVG = new HashMap<>();
         this.verticalGauges = new HashMap<>();
         this.horizontalValuesMap = new HashMap<>();
         this.candles = new ArrayList<>();
