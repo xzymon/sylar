@@ -27,7 +27,8 @@ public class StqProcessFilesConsumer implements ProcessFilesConsumer {
     public void accept(PathsDto pathsDto) {
         try {
             log.info(String.format("Processing file: %1$s", pathsDto.getPathToInputFile().getFileName().toString()));
-            CsvOutput csvOutput = processSingleFileForPath(pathsDto.getPathToInputFile());
+            StqRawDataContainer rawDataContainer = processSingleFileForPath(pathsDto.getPathToInputFile());
+            CsvOutput csvOutput = stockImageProcessingService.toCsvOutput(rawDataContainer);
             log.info(String.format("File %1$s processed.", pathsDto.getPathToInputFile().getFileName().toString()));
             moveFile(pathsDto.getPathToInputFile(), pathsDto.getLoadingDirectoryProcessed(), null);
             log.info(String.format("File %1$s moved to processed directory.", pathsDto.getPathToInputFile().getFileName().toString()));
@@ -38,10 +39,9 @@ public class StqProcessFilesConsumer implements ProcessFilesConsumer {
         }
     }
 
-    private CsvOutput processSingleFileForPath(Path path) throws IOException {
+    private StqRawDataContainer processSingleFileForPath(Path path) throws IOException {
         PngImage png = PngImage.read(new File(path.toString()));
         BufferedPaletteImage buffPalImg = (BufferedPaletteImage) ImageDecoder.toImage(png);
-        StqRawDataContainer container = stockImageProcessingService.extractRawDataFromImage(buffPalImg);
-        return stockImageProcessingService.toCsvOutput(container);
+        return stockImageProcessingService.extractRawDataFromImage(buffPalImg);
     }
 }
