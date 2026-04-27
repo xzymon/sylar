@@ -4,6 +4,7 @@
 # Archiwum będzie zawierać pliki PNG pobrane ze struktury w której normalnie są gromadzone.
 # W chwili tworzenia tego skryptu korzeniem struktury jest /opt/stooq/live
 # Ścieżka do pliku ma postać /opt/stooq/live/<typ-waloru>/<nazwa-waloru>/<nazwa-pliku>
+# Zauważ że tu <typ-waloru>=crypto
 # Pliki gromadzone w strukturze mają nazwy postaci:
 # <nazwa-pliku>=<sposob-reprezentacji>_yyyyMMdd.png
 # gdzie <sposób-reprezentacji> to br (bar) lub ln (line)
@@ -17,12 +18,11 @@
 if [ "$#" -lt 4 ]; then
     echo "Użycie: $0 <nazwa_archiwum.zip> <nazwa_katalogu_roboczego> <prefix> <plik_z_listą_katalogów>"
     # Przykładowo:
-    # $ bash $SYLAR_PROJECT_SCRIPTS_DIR/archive_pngs.bash stooq_png_archive_202502.zip 202502 br_202502 $SYLAR_DATA_SRC_IN_DIR/valors_curr
+    # $ bash $SYLAR_PROJECT_SCRIPTS_DIR/archive_pngs_crypto.bash stooq_png_crypto_archive_202510.zip 202510 br_202510 $SYLAR_DATA_SRC_IN_DIR/valors_crypto
     exit 1
 fi
 
-# Stałe - to może wymagać przestawienia - pierwsza lub druga wartość do wyboru !!!
-#DIRS_PARENT_PATH=$STOOQ_PNG_PARENT_DIR/curr
+# Stałe - tu ustawiamy na sztywno crypto
 DIRS_PARENT_PATH=$STOOQ_PNG_PARENT_DIR/crypto
 
 # Argumenty

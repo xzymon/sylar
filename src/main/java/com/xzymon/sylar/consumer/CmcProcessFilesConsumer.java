@@ -501,13 +501,13 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
 		Map<Integer, BigDecimal> hvMap = rawDataContainer.getHorizontalValuesMap();
 
 		BigDecimal extrapolatedValue, scaledValue;
-		Integer index;
+		Integer pixelDiff;
 		for (int i = 1; i < safeRefPoint0; i++) {
-			index = safeRefPoint0 - i;
+			pixelDiff = safeRefPoint0 - i;
 			extrapolatedValue = refPoint0Value.add(perPixel.multiply(new BigDecimal(i)));
 			scaledValue = extrapolatedValue.setScale(3, RoundingMode.HALF_UP);
-			hvMap.put(index, scaledValue);
-			log.info("Extrapolated value: [{}]: {}", index, hvMap.get(index));
+			hvMap.put(pixelDiff, scaledValue);
+			log.info("Extrapolated value: [{}]: {}", pixelDiff, hvMap.get(pixelDiff));
 		}
 	}
 
@@ -534,17 +534,17 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
 		Map<Integer, BigDecimal> hvMap = rawDataContainer.getHorizontalValuesMap();
 
 		BigDecimal extrapolatedValue, scaledValue;
-		Integer index;
+		Integer pixelDiff;
 		Integer bottom = rawDataContainer.getValuesFrame().getBottom(); // dolna krawędź wykresu
 
 		// idziemy od następnego po ostatnim punkcie o znanej wartości -> w dół
 		// zatem indeksy rosną, przemnożoną różnicę na piksel odejmujemy od wartości ostatniego znanego punktu
-		for (int i = safeRefPointLast + 1; i < bottom; i++) {
-			index = i - safeRefPointLast;
-			extrapolatedValue = refPointLastValue.subtract(perPixel.multiply(new BigDecimal(index)));
+		for (int pixelIt = safeRefPointLast + 1; pixelIt < bottom; pixelIt++) {
+			pixelDiff = pixelIt - safeRefPointLast;
+			extrapolatedValue = refPointLastValue.subtract(perPixel.multiply(new BigDecimal(pixelDiff)));
 			scaledValue = extrapolatedValue.setScale(3, RoundingMode.HALF_UP);
-			hvMap.put(i, scaledValue);
-			log.info("Extrapolated value: [{}]: {}", i, hvMap.get(i));
+			hvMap.put(pixelIt, scaledValue);
+			log.info("Extrapolated value: [{}]: {}", pixelIt, hvMap.get(pixelIt));
 		}
 	}
 

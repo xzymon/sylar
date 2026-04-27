@@ -1,8 +1,14 @@
 #!/bin/bash
 
+# Ten skrypt - wykorzystując inny skrypt - służy do przeniesienia plików (z kategorii curr)
+# do struktury katalogów udostępnianej przez lokalny serwer - w której pliki są gromadzone długoterminowo.
+# Pliki są przenoszone przez ten inny skrypt - z katalogu $SYLAR_CSV - i rozrzucane po katalogach per walor
+
+#THIS_FILE_DIR=~/.bash_scripts
 THIS_FILE_DIR=$SYLAR_PROJECT_SCRIPTS_DIR
 IN_DIR=$SYLAR_DATA_SRC_IN_DIR
 
+#SUBSCRIPT_FILE_NAME=sylarout.bash
 SUBSCRIPT_FILE_NAME=mv_csv_files_out_for_valor.bash
 VALORS_FILE_NAME=valors_curr
 
@@ -23,7 +29,7 @@ while IFS= read -r valor; do
     echo "Dla: $valor"
 
     # Wywołanie skryptu dla każdej wartości
-    bash "$SUBSCRIPT_FILE" "$valor" "$DATES_FILE"
+    bash "$SUBSCRIPT_FILE" "$valor"
 
     # Można dodać dodatkowe operacje dla każdej wartości, jeśli to konieczne
 done < "$VALORS_FILE"

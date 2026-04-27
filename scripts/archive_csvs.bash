@@ -1,22 +1,35 @@
 #!/bin/bash
 
+# Ten skrypt tworzy w bieżącym katalogu archiwum (o wskazanej nazwie) - archiwum jest plikiem ZIP.
+# Archiwum będzie zawierać pliki CSV pobrane ze struktury gromadzącej je na potrzeby wystawienia na lokalnym serwerze
+# W chwili tworzenia tego skryptu korzeniem struktury jest /srv/http/resources/csv/maiordomus/to-load
+# Ścieżka do pliku ma postać /srv/http/resources/csv/maiordomus/to-load/<rodzaj>/<nazwa-waloru>/<nazwa-pliku>
+# Pliki gromadzone w strukturze mają nazwy postaci:
+# <nazwa-pliku>=<nazwa-waloru>_<rodzaj>_yyyyMMdd_<nr>.csv
+# Zatem skrypt wyciąga pliki z katalogów z podzbioru tych wskazanych w pliku z listą katalogów
+# i - znając rodzaj na którym operuje oraz prefix - kopiuje do katalogu roboczego archiwum pliki spełniające maskę:
+# <nazwa-waloru>_<rodzaj>_<prefix>*
+# Zauważ, że skrypt nie jest zapięty na konkretne rozszerzenie - więc można w ten sposób np. łatwo wyciągnąć
+# wszystkie pliki należące do danego miesiąca - podając jako prefix 202502 - wyciągamy cały luty 2025.
+
 # Sprawdzenie, czy podano wystarczającą liczbę argumentów
 if [ "$#" -lt 4 ]; then
     echo "Użycie: $0 <nazwa_archiwum.zip> <nazwa_katalogu_roboczego> <prefix> <plik_z_listą_katalogów>"
     # Przykładowo:
-    # $ bash $SYLAR_PROJECT_SCRIPTS_DIR/archive_csvs.bash stooq_csv_archive_202502.zip 202502 202502 $SYLAR_DATA_SRC_IN_DIR/valors_curr
+    # $ bash $SYLAR_PROJECT_SCRIPTS_DIR/archive_csvs.bash stooq_csv_curr_archive_202502.zip 202510 202510 $SYLAR_DATA_SRC_IN_DIR/valors_curr
+    # $ bash $SYLAR_PROJECT_SCRIPTS_DIR/archive_csvs.bash stooq_csv_crypto_archive_202502.zip 202510 202510 $SYLAR_DATA_SRC_IN_DIR/valors_cypto
     exit 1
 fi
 
 # Stałe
+# STOOQ_CSV_PARENT_DIR=/srv/http/resources/csv/maiordomus/to-load
 DATA_KIND=b15m
 DIRS_PARENT_PATH=$STOOQ_CSV_PARENT_DIR/$DATA_KIND
 
-
 # Argumenty
-output_zip="$1"       # Nazwa archiwum - np. stooq_csv_archive_202502.zip
-work_dir="$2"         # Nazwa dla katalogu roboczego, do którego będą kopiowane pliki - np. 202502 (yyyymm)
-prefix="$3"           # Prefiks plików - np. 202502
+output_zip="$1"       # Nazwa archiwum - np. stooq_csv_crypto_archive_202510.zip
+work_dir="$2"         # Nazwa dla katalogu roboczego, do którego będą kopiowane pliki - np. 202510 (yyyymm)
+prefix="$3"           # Prefiks plików - np. 202510
 catalog_list_file="$4" # Plik zawierający listę katalogów
 
 # Sprawdzenie, czy plik zawierający listę katalogów istnieje

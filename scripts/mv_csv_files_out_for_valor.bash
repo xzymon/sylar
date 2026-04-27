@@ -1,11 +1,11 @@
 #!/bin/bash
 
-DEST_PARENT_DIR=$B15M_PARENT_DIR
-OUT=$SYLAR_CSV
-LOG_FILE=$LOGS_PARENT_DIR/sylar/csv_files.log
-
 # Przenoszenie plików CSV wygenerowanych przez sylar - do katalogu gdzie będą składane dla danego waloru
 # Argumentem jest katalog o nazwie odpowiadającej nazwie waloru
+# Zauważ, że oczekiwane jest że pliki mają nazwę postaci <nazwa-waloru>_<rodzaj>_yyyyMMdd_<nr>.csv
+# np. USDJPY_b15m_20250601_01.csv
+# Ten skrypt przerzuca wszystkie pliki z katalogu $SYLAR_CSV do katalogu danego waloru - czyli rozdziela je ze względu na nazwę waloru
+
 # Sprawdź, czy podano argument
 if [ $# -eq 0 ]; then
   echo "Nie podano argumentu. Użyj: $0 <nazwa-waloru>"
@@ -14,6 +14,10 @@ fi
 
 # Wypisz wartość argumentu
 echo "Podano argument: $1"
+
+DEST_PARENT_DIR=$B15M_PARENT_DIR
+OUT=$SYLAR_CSV
+LOG_FILE=$LOGS_PARENT_DIR/sylar/csv_files.log
 
 if [ ! -d "$DEST_PARENT_DIR/$1" ]; then
   echo "Katalog $DEST_PARENT_DIR/$1 nie istnieje."

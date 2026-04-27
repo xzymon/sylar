@@ -40,11 +40,21 @@ public class StockTradingDaysGeneratorService implements TradingDaysGeneratorSer
 
 		EXCLUDED_DAYS.add(LocalDate.of(2024, 1, 1));
 		EXCLUDED_DAYS.add(LocalDate.of(2025, 1, 1));
+		EXCLUDED_DAYS.add(LocalDate.of(2026, 1, 1));
+		EXCLUDED_DAYS.add(LocalDate.of(2027, 1, 1));
+		EXCLUDED_DAYS.add(LocalDate.of(2028, 1, 1));
+		EXCLUDED_DAYS.add(LocalDate.of(2029, 1, 1));
+		EXCLUDED_DAYS.add(LocalDate.of(2030, 1, 1));
 
 
 		initForLocalDate(LocalDate.of(2023, 12, 31));
 		initForYear(2024);
 		initForYear(2025);
+		initForYear(2026);
+		initForYear(2027);
+		initForYear(2028);
+		initForYear(2029);
+		initForYear(2030);
 
 		TRADE_DAYS.addAll(WORK_WEEK_DAYS);
 		TRADE_DAYS.removeAll(EXCLUDED_DAYS);
