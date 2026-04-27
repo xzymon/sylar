@@ -30,10 +30,11 @@ public class MainScheduler {
 	private static final String DIR_STQ_PROC_PATH_PROBLEM_HINT = "Property loading.directory.stq.processed problem. Should be Read-Write directory. Hint: ";
 	private static final String DIR_STQ_GEN_PATH_PROBLEM_HINT = "Property generatedCSV.directory.stq.out problem. Should be Read-Write directory. Hint: ";
 
-	private static final String DIR_CMC_IN_PATH_PROBLEM_HINT = "Property loading.directory.stq.in problem. Should be Read-Write directory. Hint: ";
-	private static final String DIR_CMC_PROC_PATH_PROBLEM_HINT = "Property loading.directory.stq.processed problem. Should be Read-Write directory. Hint: ";
-	private static final String DIR_CMC_GEN_CSV_PATH_PROBLEM_HINT = "Property generatedCSV.directory.stq.out problem. Should be Read-Write directory. Hint: ";
-	private static final String DIR_CMC_GEN_PNG_PATH_PROBLEM_HINT = "Property generatedPNG.directory.stq.out problem. Should be Read-Write directory. Hint: ";
+	private static final String DIR_CMC_IN_PATH_PROBLEM_HINT = "Property loading.directory.cmc.in problem. Should be Read-Write directory. Hint: ";
+	private static final String DIR_CMC_RENAME_PATH_PROBLEM_HINT = "Property loading.directory.cmc.renamed problem. Should be Read-Write directory. Hint: ";
+	private static final String DIR_CMC_PROC_PATH_PROBLEM_HINT = "Property loading.directory.cmc.processed problem. Should be Read-Write directory. Hint: ";
+	private static final String DIR_CMC_GEN_CSV_PATH_PROBLEM_HINT = "Property generatedCSV.directory.cmc.out problem. Should be Read-Write directory. Hint: ";
+	private static final String DIR_CMC_GEN_PNG_PATH_PROBLEM_HINT = "Property generatedPNG.directory.cmc.out problem. Should be Read-Write directory. Hint: ";
 
 	@Value("${loading.directory.stq.in}")
 	private String loadingDirectoryStqIn;
@@ -46,6 +47,9 @@ public class MainScheduler {
 
 	@Value("${loading.directory.cmc.in}")
 	private String loadingDirectoryCmcIn;
+
+	@Value("${loading.directory.cmc.renamed}")
+	private String loadingDirectoryCmcRenamed;
 
 	@Value("${loading.directory.cmc.processed}")
 	private String loadingDirectoryCmcProcessed;
@@ -84,19 +88,21 @@ public class MainScheduler {
 		checkDirectory(loadingDirectoryStqProcessed, DIR_STQ_PROC_PATH_PROBLEM_HINT);
 		checkDirectory(stqGeneratedCsvDirectory, DIR_STQ_GEN_PATH_PROBLEM_HINT);
 		log.debug(loadingDirectoryStqIn);
-		processFiles(loadingDirectoryStqIn, loadingDirectoryStqProcessed, stqGeneratedCsvDirectory, null, stqProcessFilesConsumer);
+		processFiles(loadingDirectoryStqIn, null, loadingDirectoryStqProcessed, stqGeneratedCsvDirectory, null, stqProcessFilesConsumer);
 	}
 
 	private void processCmcFiles() {
 		checkDirectory(loadingDirectoryCmcIn, DIR_CMC_IN_PATH_PROBLEM_HINT);
+		checkDirectory(loadingDirectoryCmcRenamed, DIR_CMC_RENAME_PATH_PROBLEM_HINT);
 		checkDirectory(loadingDirectoryCmcProcessed, DIR_CMC_PROC_PATH_PROBLEM_HINT);
 		checkDirectory(cmcGeneratedCsvDirectory, DIR_CMC_GEN_CSV_PATH_PROBLEM_HINT);
 		checkDirectory(cmcGeneratedPngDirectory, DIR_CMC_GEN_PNG_PATH_PROBLEM_HINT);
 		log.debug(loadingDirectoryCmcIn);
-		processFiles(loadingDirectoryCmcIn, loadingDirectoryCmcProcessed, cmcGeneratedCsvDirectory, cmcGeneratedPngDirectory, cmcProcessFilesConsumer);
+		processFiles(loadingDirectoryCmcIn, loadingDirectoryCmcRenamed, loadingDirectoryCmcProcessed, cmcGeneratedCsvDirectory, cmcGeneratedPngDirectory, cmcProcessFilesConsumer);
 	}
 
 	private void processFiles(String loadingDirectoryIn,
+							  String loadingDirectoryRenamed,
 							  String loadingDirectoryProcessed,
 							  String generatedCsvDirectory,
 							  String generatedPngDirectory,
@@ -113,7 +119,7 @@ public class MainScheduler {
 		}
 		if (!pathsToFiles.isEmpty()) {
 			for (Path pathToFile : pathsToFiles) {
-				processFilesConsumer.accept(new PathsDto(loadingDirectoryProcessed, generatedCsvDirectory, generatedPngDirectory, pathToFile));
+				processFilesConsumer.accept(new PathsDto(loadingDirectoryProcessed, loadingDirectoryRenamed, generatedCsvDirectory, generatedPngDirectory, pathToFile));
 			}
 		} else {
 			log.info("No files to process.");

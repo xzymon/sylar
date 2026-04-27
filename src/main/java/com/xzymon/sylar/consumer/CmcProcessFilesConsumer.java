@@ -47,29 +47,20 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
 
 	@Override
 	public void accept(PathsDto pathsDto) {
-		log.info(String.format("Processing file: %1$s", pathsDto.getPathToInputFile().getFileName().toString()));
-		//CsvOutput csvOutput = processSingleFileForPath(pathsDto.getPathToInputFile());
-		CmcRawDataContainer rawDataContainer = new CmcRawDataContainer();
 		try {
-			storeInPngFile(rawDataContainer, pathsDto.getPathToInputFile(), pathsDto.getGeneratedPngDirectory());
+			log.info(String.format("Processing file: %1$s", pathsDto.getPathToInputFile().getFileName().toString()));
+			CmcRawDataContainer rawDataContainer = new CmcRawDataContainer();
+			processSingleFileForPath(rawDataContainer, pathsDto.getPathToInputFile());
+			log.info(String.format("File %1$s processed.", pathsDto.getPathToInputFile().getFileName().toString()));
+			moveFile(pathsDto.getPathToInputFile(), pathsDto.getLoadingDirectoryProcessed(), rawDataContainer.getPngFileNewName());
+			log.info(String.format("File %1$s moved to processed directory.", pathsDto.getPathToInputFile().getFileName().toString()));
+			//storeInCsvFile(pathsDto.getGeneratedCsvDirectory(), csvOutput);
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
-		log.info(String.format("File %1$s processed.", pathsDto.getPathToInputFile().getFileName().toString()));
-		moveFile(pathsDto.getPathToInputFile(), pathsDto.getLoadingDirectoryProcessed(), rawDataContainer.getPngFileNewName());
-		log.info(String.format("File %1$s moved to processed directory.", pathsDto.getPathToInputFile().getFileName().toString()));
-		//storeInCsvFile(pathsDto.getGeneratedCsvDirectory(), csvOutput);
 	}
 
-    /*
-    private CsvOutput processSingleFileForPath(Path path) throws IOException {
-        PngImage png = PngImage.read(new File(path.toString()));
-        BufferedPaletteImage buffPalImg = (BufferedPaletteImage) ImageDecoder.toImage(png);
-        StqRawDataContainer container = stockImageProcessingService.extractRawDataFromImage(buffPalImg);
-        return stockImageProcessingService.toCsvOutput(container);
-    }*/
-
-	private CmcRawDataContainer storeInPngFile(CmcRawDataContainer rawDataContainer, Path inputPath, String genPngDir) throws IOException {
+	private CmcRawDataContainer processSingleFileForPath(CmcRawDataContainer rawDataContainer, Path inputPath) throws IOException {
 		log.info("Processing file: " + inputPath.toString());
 		BufferedImage image = ImageIO.read(new File(inputPath.toString()));
 
