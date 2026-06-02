@@ -13,7 +13,7 @@ CROP_HEIGHT=1475
 CROP_X=10
 CROP_Y=414
 
-IMGC_DEFAULT_DIR=$HOME/Images/imgc/iPad
+IMGC_DEFAULT_DIR=$HOME/Images/imgc/iPad/cmc-extr
 
 OUTPUT_SUFFIX="_narrow_values"
 
