@@ -31,8 +31,8 @@ public class BarStockPngPaletteImageProcessingService implements StockPngPalette
 	}
 
 	public StqRawDataContainer extractRawDataFromImage(BufferedPaletteImage img) {
-		FontSize8Characters fontSize8Characters = new FontSize8Characters();
 		StqRawDataContainer result = new StqRawDataContainer();
+		FontSize8Characters fontSize8Characters = new FontSize8Characters();
 
 		// get frame coords
 		final int framePaletteColor = LayerPaletteColorOnImage.FRAMES;

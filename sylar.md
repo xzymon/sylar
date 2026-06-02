@@ -57,8 +57,7 @@ Nazewnictwo katalogów jest spójne - w celu przełączenia na wariant krypto: p
    - Polecenie kopiuje wszystkie kwalifikujące się pliki z katalogu `/opt/stooq/live/curr/<walor>/br_<data>.png` i umieszcza je w katalogu `in`, wykorzystywanym przez aplikację **sylar**.
    - Pliki otrzymują prefix nazwy katalogu, np. `USDJPY_` (gdy `<walor>` to USDJPY, aby uniknąć konfliktów nazw plików z różnych katalogów.
 
-### Uruchomienie SYLAR ###
-
+### Uruchomienie SYLAR  -> zasysanie dancyh z plików stooq 15m
 
 1. Aplikacja **sylar** wczytuje pliki z katalogu `sylar_in`, a następnie:
    - Pliki przetworzone prawidłowo zostaną przeniesione do katalogu `sylar_processed`.
@@ -112,3 +111,40 @@ Nazewnictwo katalogów jest spójne - w celu przełączenia na wariant krypto: p
    - **NAS** (Network Attached Storage),
    - **Przestrzeń w chmurze**.
 8. Po zakończeniu procesu usuń pliki źródłowe, które były użyte do utworzenia archiwum.
+
+### SYLAR - cmc 30s 
+Wiadomo już, że to trzeba wersjonować - bo layout w aplikacji (i zresztą chyba tak w ogóle to systemowy też) się zmienia.
+Muszę ustalić punkty odcięcia - kiedy doszło do zmiany. Co najmniej 4 wersje do teraz 2026-06-02.
+v1: 2025-03-12 raw/01/IMG_0515.PNG | 2025-05-30 raw/04/IMG_2209.PNG
+   Cechy wersji:
+   - kolorystyka - szara,
+   - systemowa data/godzina - wąskie,
+   - trzy kropki w układzie poziomym - pośrodku belki na wysokości systemowej daty/godziny,
+   - napis: "G...we" pod datą/godziną <--- to jest chyba  najbardziej własna cecha tej wersji.
+v2: 2025-05-30 raw/04/IMG_2210.PNG | 2025-10-17 raw/20/IMG_5229.PNG
+   Cechy wersji:
+   - kolorystyka - czarna,
+   - systemowa data/godzina - wąskie,
+   - napis: "G...we" pod datą/godziną - jak w v1.
+   - można wstępnie zaryzykować, że to będzie to samo co v1 - tylko kolorystyka jest inna.
+v3: 2025-10-19 raw/21/IMG_5233.PNG | 2025-01-20 raw/26/IMG_6917.PNG
+   Cechy wersji:
+   - kolorystyka - czarna,
+   - systemowa data/godzina - wąskie,
+   - napis: "Gotowe" pod datą/godziną
+v4: 2026-02-21 raw/26/IMG_6918.PNG | 2026-04-17 raw/34/IMG_9188.PNG
+   Cechy wersji:
+   - kolorystyka - czarna,
+   - systemowa data/godzina - odsunięte i większe,
+   - pod systemową datą/godziną nie ma napisu tylko jest wielki krzyżyk w obramowaniu oraz nad wykresem po prawej lista i zegarek również w obramowaniu - i mają szerszą belkę niż do v3. 
+v5: 2026-04-17 raw/34/IMG_9189.PNG | 2026-05-29 raw/39/IMG_2134.PNG ---> conajmniej do tego miejsca obowiązuje ta wersja
+   Cechy wersji:
+   - kolorystyka - czarna,
+   - systemowa data/godzina - odsunięte i większe,
+   - pod systemową datą/godziną nie ma napisu tylko jest wielki krzyżyk w obramowaniu oraz nad wykresem po prawej lista i zegarek również w obramowaniu - i mają szerszą belkę niż do v3,
+   - nad panelem na prawo od wykresu jest info o saldzie konta - i ten panel zaczyna się nieco niżej niż do v4.
+
+Jeszcze jedna istotna sprawa w kontekście przetwarzania - granica pomiędzy 2025 a 2026: gdzieś pomiędzy katalogiem 25 a 26 (akurat tak przypadkowo :D).
+Prawdopodobnie ostatni plik zrzucony w 2025: 2025-12-31 raw/26/IMG_6656.PNG. Ale to nie oznacza, że to ostatni plik z danymi dotyczącymi 2025.
+1 stycznia są pliki które zawierają dane z 31 grudnia 2025.
+Przy okazji widać tu wyraźnie że trzeba opracować mechanizm który znając datę zrzutu - i grzebiąc w wykresie - może określić datę i godzinę danych ze zrzutu.
