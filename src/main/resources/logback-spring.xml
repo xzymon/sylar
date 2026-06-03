@@ -59,12 +59,12 @@
 
     <logger name="com.xzymon.sylar.scheduling">
         <appender-ref ref="FILESYSTEM_AP" />
-        <appender-ref ref="STDOUT" />
+        <!-- <appender-ref ref="STDOUT" /> -->
     </logger>
 
     <logger name="com.xzymon.sylar.service">
         <appender-ref ref="SERVICE_AP" />
-        <appender-ref ref="STDOUT" />
+        <!-- <appender-ref ref="STDOUT" /> -->
     </logger>
 
     <logger name="com.xzymon.sylar.processing">

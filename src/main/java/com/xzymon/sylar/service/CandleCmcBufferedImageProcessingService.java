@@ -1,22 +1,19 @@
 package com.xzymon.sylar.service;
 
-import com.xzymon.sylar.constants.CmcFrameCoordsConstants;
+import com.xzymon.sylar.constants.framecoords.CmcFrameCoordsConstants;
 import com.xzymon.sylar.constants.IntervalHelper;
 import com.xzymon.sylar.constants.MonthPlMapping;
 import com.xzymon.sylar.constants.ValorNameHelper;
 import com.xzymon.sylar.constants.marker.MarkerCharacter;
+import com.xzymon.sylar.helper.ColorReplacementHelper;
 import com.xzymon.sylar.helper.ValuesAreaColors;
 import com.xzymon.sylar.model.*;
 import com.xzymon.sylar.predicate.*;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
-import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -111,11 +108,15 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		}
 
 		if (!rawDataContainer.isNotChart()) {
+			log.debug("!rawDataContainer.isNotChart()");
 			if (rawDataContainer.isToolboxFlag()) {
+				log.debug("!rawDataContainer.isNotChart() && rawDataContainer.isToolboxFlag()");
 				if (rawDataContainer.isNarrowFlag()) {
+					log.debug("!rawDataContainer.isNotChart() && rawDataContainer.isToolboxFlag() && rawDataContainer.isNarrowFlag()");
 					determineValuesFrameCoordsByMatchingCorners(rawDataContainer, CmcFrameCoordsConstants.DEFAULT_NARROW_TOOLBOX_VALUES_FRAME, image, CHECK_MARGIN);
 				}
 				if (rawDataContainer.isWideFlag()) {
+					log.debug("!rawDataContainer.isNotChart() && rawDataContainer.isToolboxFlag() && rawDataContainer.isWideFlag()");
 					determineValuesFrameCoordsByMatchingCorners(rawDataContainer, CmcFrameCoordsConstants.DEFAULT_WIDE_TOOLBOX_VALUES_FRAME, image, CHECK_MARGIN);
 				}
 			} else {
@@ -237,12 +238,12 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		rawDataContainer.setToolboxMarkerFC(frameCoords);
 		TextPixelFlattenedArea toolboxMarkerArea = rawDataContainer.getToolboxMarkerArea();
 		int[] pixelArea = extractPixelsFromFrame(rawDataContainer.getToolboxMarkerFC(), image);
-		toolboxMarkerArea.setPixelArea(recolorAllWithMap(getFF121212RecoloringMap(), pixelArea));
+		toolboxMarkerArea.setPixelArea(recolorAllWithMap(ColorReplacementHelper.BARELY_BLACK_DEVIATIONS, pixelArea));
 		toolboxMarkerArea.setXLength(frameCoords.getRight() - frameCoords.getLeft());
 		toolboxMarkerArea.setYLength(frameCoords.getBottom() - frameCoords.getTop());
 		int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(toolboxMarkerArea);
 		try {
-			String detectedText = detectTrimmedCharsAndRun(scannedVertically, toolboxMarkerArea, Map.of(), new MarkerReportingUnknownTrimmedShapePredicate());
+			String detectedText = detectTrimmedCharsAndRun(scannedVertically, toolboxMarkerArea, ColorReplacementHelper.NO_REPLACEMENTS, new MarkerReportingUnknownTrimmedShapePredicate());
 			rawDataContainer.setToolboxFlag(detectedText.equals(MarkerCharacter.TOOLBOX));
 		} catch (RuntimeException e) {
 			rawDataContainer.setToolboxFlag(false);
@@ -256,7 +257,7 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		valorNameArea.setXLength(frameCoords.getRight() - frameCoords.getLeft());
 		valorNameArea.setYLength(frameCoords.getBottom() - frameCoords.getTop());
 		int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(valorNameArea);
-		String detectedText = detectTrimmedCharsAndRun(scannedVertically, valorNameArea, Map.of(), new FontSize27ReportingUnknownTrimmedShapePredicate());
+		String detectedText = detectTrimmedCharsAndRun(scannedVertically, valorNameArea, ColorReplacementHelper.NO_REPLACEMENTS, new FontSize27ReportingUnknownTrimmedShapePredicate());
 		String trimmedText = detectedText.trim();
 		valorNameArea.setExtractedText(trimmedText);
 	}
@@ -265,11 +266,11 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		rawDataContainer.setIntervalLine1FC(frameCoords);
 		TextPixelFlattenedArea intervalLine1Area = rawDataContainer.getIntervalLine1Area();
 		int[] pixelArea = extractPixelsFromFrame(rawDataContainer.getIntervalLine1FC(), image);
-		intervalLine1Area.setPixelArea(recolorAllWithMap(getFF121212RecoloringMap(), pixelArea));
+		intervalLine1Area.setPixelArea(recolorAllWithMap(ColorReplacementHelper.BARELY_BLACK_DEVIATIONS, pixelArea));
 		intervalLine1Area.setXLength(frameCoords.getRight() - frameCoords.getLeft());
 		intervalLine1Area.setYLength(frameCoords.getBottom() - frameCoords.getTop());
 		int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(intervalLine1Area);
-		String detectedText = detectTrimmedCharsAndRun(scannedVertically, intervalLine1Area, Map.of(), new FontSize22ReportingUnknownTrimmedShapePredicate());
+		String detectedText = detectTrimmedCharsAndRun(scannedVertically, intervalLine1Area, ColorReplacementHelper.NO_REPLACEMENTS, new FontSize22ReportingUnknownTrimmedShapePredicate());
 		String trimmedText = detectedText.trim();
 		intervalLine1Area.setExtractedText(trimmedText);
 	}
@@ -278,11 +279,11 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		rawDataContainer.setIntervalLine2FC(frameCoords);
 		TextPixelFlattenedArea intervalLine2Area = rawDataContainer.getIntervalLine2Area();
 		int[] pixelArea = extractPixelsFromFrame(rawDataContainer.getIntervalLine2FC(), image);
-		intervalLine2Area.setPixelArea(recolorAllWithMap(getFF121212RecoloringMap(), pixelArea));
+		intervalLine2Area.setPixelArea(recolorAllWithMap(ColorReplacementHelper.BARELY_BLACK_DEVIATIONS, pixelArea));
 		intervalLine2Area.setXLength(frameCoords.getRight() - frameCoords.getLeft());
 		intervalLine2Area.setYLength(frameCoords.getBottom() - frameCoords.getTop());
 		int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(intervalLine2Area);
-		String detectedText = detectTrimmedCharsAndRun(scannedVertically, intervalLine2Area, Map.of(), new FontSize16ReportingUnknownTrimmedShapePredicate());
+		String detectedText = detectTrimmedCharsAndRun(scannedVertically, intervalLine2Area, ColorReplacementHelper.NO_REPLACEMENTS, new FontSize16ReportingUnknownTrimmedShapePredicate());
 		String trimmedText = detectedText.trim();
 		intervalLine2Area.setExtractedText(trimmedText);
 	}
@@ -294,12 +295,7 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		intervalOptionsArea.setXLength(frameCoords.getRight() - frameCoords.getLeft());
 		intervalOptionsArea.setYLength(frameCoords.getBottom() - frameCoords.getTop());
 		int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(intervalOptionsArea);
-		Map<Integer, Integer> colorsReplacementMap = Map.of(
-				-13224394, -16777216,   // -13224394 = 0xff363636 ; #363636 -> #000
-				-10790053, -16777216,      // -10790053 = 0xff5b5b5b ; #5b5b5b -> #000
-				-3487030, -16777216         //  -16777216 = 0xffcacaca ;  #cacaca -> #000
-		);
-		String detectedText = detectTrimmedCharsAndRun(scannedVertically, intervalOptionsArea, colorsReplacementMap, new FontSize20ReportingUnknownTrimmedShapePredicate());
+		String detectedText = detectTrimmedCharsAndRun(scannedVertically, intervalOptionsArea, ColorReplacementHelper.INTERVAL_OPTIONS, new FontSize20ReportingUnknownTrimmedShapePredicate());
 		String trimmedText = detectedText.trim();
 		intervalOptionsArea.setExtractedText(trimmedText);
 	}
@@ -319,9 +315,16 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 
 		if (topLeftCornerFlag && topRightCornerFlag && bottomRightCornerFlag && bottomLeftCornerFlag) {
 			rawDataContainer.setValuesFrame(defaultValuesFrame);
+			log.info("Values frame set to: {}", defaultValuesFrame);
 			rawDataContainer.setValuesFrameFlag(true);
 		} else {
-			throw new RuntimeException("values frame not detected");
+			log.info("Flags");
+			StringBuilder errorsSB = new StringBuilder();
+			if (topLeftCornerFlag == false) errorsSB.append("topLeftCornerFlag, ");
+			if (topRightCornerFlag == false) errorsSB.append("topRightCornerFlag, ");
+			if (bottomRightCornerFlag == false) errorsSB.append("bottomRightCornerFlag, ");
+			if (bottomLeftCornerFlag == false) errorsSB.append("bottomLeftCornerFlag");
+			throw new RuntimeException("values frame not detected - because of missing corner flags: " + errorsSB);
 		}
 	}
 
@@ -334,7 +337,7 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(valuesFrameTopLeftArea);
 		String detectedText;
 		try {
-			detectedText = detectCharAndRun(scannedVertically, valuesFrameTopLeftArea, Map.of(), new MarkerReportingUnknownTrimmedShapePredicate());
+			detectedText = detectCharAndRun(scannedVertically, valuesFrameTopLeftArea, ColorReplacementHelper.INTERVAL_OPTIONS, new AdvancedRecoloringMarkerReportingUnknownTrimmedShapePredicate());
 			log.info("detected: " + detectedText);
 		} catch (RuntimeException e) {
 			return false;
@@ -502,11 +505,12 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 
 		BigDecimal extrapolatedValue, scaledValue;
 		Integer pixelDiff;
-		Integer bottom = rawDataContainer.getValuesFrame().getBottom(); // dolna krawędź wykresu
+		// to jest wysokość wykresu (tzn. rozpiętość pionowa) - zatem jest to bottom - top
+		Integer yLength = rawDataContainer.getValuesFrame().getBottom() - rawDataContainer.getValuesFrame().getTop();
 
 		// idziemy od następnego po ostatnim punkcie o znanej wartości -> w dół
 		// zatem indeksy rosną, przemnożoną różnicę na piksel odejmujemy od wartości ostatniego znanego punktu
-		for (int pixelIt = safeRefPointLast + 1; pixelIt < bottom; pixelIt++) {
+		for (int pixelIt = safeRefPointLast + 1; pixelIt < yLength; pixelIt++) {
 			pixelDiff = pixelIt - safeRefPointLast;
 			extrapolatedValue = refPointLastValue.subtract(perPixel.multiply(new BigDecimal(pixelDiff)));
 			scaledValue = extrapolatedValue.setScale(3, RoundingMode.HALF_UP);
@@ -520,7 +524,8 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		FrameCoords toolboxNarrowRefPointToTextAreaOffset = new FrameCoords(405, 1852, 427, 1742);
 
 		FrameCoords modifiersFC = null;
-		if (rawDataContainer.isToolboxFlag() && rawDataContainer.isNarrowFlag()) {
+		// tylko narrowFlag jest istotny???
+		if (/*rawDataContainer.isToolboxFlag() && */rawDataContainer.isNarrowFlag()) {
 			modifiersFC = toolboxNarrowRefPointToTextAreaOffset;
 		}
 
@@ -553,7 +558,7 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		FrameCoords frameCoords = new FrameCoords(valuesFrame.getTop(), valuesFrame.getRight()+FRAME_LINE_WIDTH+CHECK_MARGIN, valuesFrame.getBottom(), valuesFrame.getRight()+FRAME_LINE_WIDTH);
 		TextPixelFlattenedArea referencePointsFrameArea = new TextPixelFlattenedArea();
 		int[] pixelArea = extractPixelsFromFrame(frameCoords, image);
-		referencePointsFrameArea.setPixelArea(recolorAllWithMap(getCurrentLineRecoloringMap(), pixelArea));
+		referencePointsFrameArea.setPixelArea(recolorAllWithMap(ColorReplacementHelper.CURRENT_LEVEL_LINE_ERASER, pixelArea));
 		referencePointsFrameArea.setXLength(frameCoords.getRight() - frameCoords.getLeft());
 		referencePointsFrameArea.setYLength(frameCoords.getBottom() - frameCoords.getTop());
 
@@ -798,19 +803,6 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 			log.info("Detected shared string in brackets: [" + sharedSB + "]");
 		}
 		return sharedSB.toString();
-	}
-
-	private static Map<Integer, Integer> getFF121212RecoloringMap() {
-		return Map.of(
-				// przemapowywanie szarego tła na efektywnie monochromatyczne tło
-				-15592941, -15592942,        // -15592941 = 0xff121213 ; #121213 -> #121212 -> #000
-				-15592686, -15592942,        // -15592686 = 0xff121312 ; #121312 -> #121212 -> #000
-				-15592685, -15592942,        // -15592685 = 0xff121313 ; #121313 -> #121212 -> #000
-				-15527406, -15592942,        // -15527406 = 0xff131212 ; #131212 -> #121212 -> #000
-				-15527405, -15592942,        // -15527406 = 0xff131212 ; #131213 -> #121212 -> #000
-				-15527150, -15592942,        // -15527150 = 0xff131312 ; #131312 -> #121212 -> #000
-				-15527149, -15592942        // -15527150 = 0xff131313 ; #131313 -> #121212 -> #000
-		);
 	}
 
 	private static Map<Integer, Integer> getCurrentLineRecoloringMap() {

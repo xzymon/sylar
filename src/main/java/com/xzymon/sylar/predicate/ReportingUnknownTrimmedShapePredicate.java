@@ -25,8 +25,8 @@ public abstract class ReportingUnknownTrimmedShapePredicate extends PrintTrimmed
 
         checkAndLogMessage(pixelShapeContainer, log);
 
-        int[] copyOfPixelArray = new int[pixelArray.length];
-        System.arraycopy(pixelArray, 0, copyOfPixelArray, 0, pixelArray.length);
+        int[] backupOfPixelArray = new int[pixelArray.length];
+        System.arraycopy(pixelArray, 0, backupOfPixelArray, 0, pixelArray.length);
         if (replaceColorsMap != null && !replaceColorsMap.isEmpty()) {
             for (Map.Entry<Integer, Integer> replaceColor : replaceColorsMap.entrySet()) {
                 for (int i = 0; i < pixelArray.length; i++) {
@@ -34,6 +34,11 @@ public abstract class ReportingUnknownTrimmedShapePredicate extends PrintTrimmed
                         pixelArray[i] = replaceColor.getValue();
                     }
                 }
+            }
+        }
+        if (hasAdvancedRecoloring()) {
+            for (int i = 0; i < pixelArray.length; i++) {
+                pixelArray[i] = performAdvancedRecoloring(pixelArray[i]);
             }
         }
         /**
@@ -46,7 +51,7 @@ public abstract class ReportingUnknownTrimmedShapePredicate extends PrintTrimmed
          */
         int[] foregroundShape = getForegroundShape(areaWidth, arrHeight, offset, pixelArray, arrWidth);
         String foundShape = findShapeInFontOrRaise(foregroundShape, pixelShapeContainer);
-        pixelShapeContainer.setPixelArray(copyOfPixelArray); //przywrócenie stanu sprzed modyfikacji z replaceColorsMap
+        pixelShapeContainer.setPixelArray(backupOfPixelArray); //przywrócenie stanu sprzed modyfikacji z replaceColorsMap
         pixelShapeContainer.getExtractedText().append(foundShape);
     }
 
@@ -76,7 +81,7 @@ public abstract class ReportingUnknownTrimmedShapePredicate extends PrintTrimmed
                     return consideredChar.getValue();
                 }
                 if (toleranceDifference <= maxToleranceDifference) {
-                    log.debug("Match within tolerance - Found char {} with width {}. toleranceDifference / compliantEntirely = {} / {}", consideredChar.getValue(), pixelShapeContainer.getAreaWidth(), toleranceDifference, foregroundShape.length);
+                    log.debug("Match within tolerance - Found char [{}] with width {}. toleranceDifference / compliantEntirely = {} / {}", consideredChar.getValue(), pixelShapeContainer.getAreaWidth(), toleranceDifference, foregroundShape.length);
                     log.debug("Matched char: {}", consideredChar.getValue());
                     log.debug("Will continue to find even better match...");
                     matchWithinTolerance = true;
@@ -87,7 +92,7 @@ public abstract class ReportingUnknownTrimmedShapePredicate extends PrintTrimmed
             }
         }
         if (matchWithinTolerance) {
-            log.debug("No exact match. Found match within tolerance - Found char {} with width {}", matchWithinToleranceChar, pixelShapeContainer.getAreaWidth());
+            log.debug("No exact match. Found match within tolerance - Found char [{}] with width {}", matchWithinToleranceChar, pixelShapeContainer.getAreaWidth());
             return matchWithinToleranceChar;
         }
         log.error("No match found for shape {} with width {}", foregroundShape, pixelShapeContainer.getAreaWidth());
@@ -103,4 +108,12 @@ public abstract class ReportingUnknownTrimmedShapePredicate extends PrintTrimmed
     abstract double getToleranceThresholdPercent();
 
     abstract Map<Integer, Map<int[], String>> getWidthsMap();
+
+    protected int performAdvancedRecoloring(int pixel) {
+        return pixel;
+    }
+
+    protected boolean hasAdvancedRecoloring() {
+        return false;
+    }
 }

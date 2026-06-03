@@ -1,4 +1,4 @@
-package com.xzymon.sylar.constants;
+package com.xzymon.sylar.constants.framecoords;
 
 import com.xzymon.sylar.model.FrameCoords;
 
