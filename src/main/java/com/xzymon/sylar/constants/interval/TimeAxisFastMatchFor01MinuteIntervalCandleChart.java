@@ -1,0 +1,59 @@
+package com.xzymon.sylar.constants.interval;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class TimeAxisFastMatchFor01MinuteIntervalCandleChart {
+	public static final Map<String, Integer> GAUGE_TEXT_TO_TIME = new HashMap<>();
+
+	static {
+		GAUGE_TEXT_TO_TIME.put("00:00", 0);
+		GAUGE_TEXT_TO_TIME.put("00:30", 30);
+		GAUGE_TEXT_TO_TIME.put("01:00", 60);
+		GAUGE_TEXT_TO_TIME.put("01:30", 90);
+		GAUGE_TEXT_TO_TIME.put("02:00", 120);
+		GAUGE_TEXT_TO_TIME.put("02:30", 150);
+		GAUGE_TEXT_TO_TIME.put("03:00", 180);
+		GAUGE_TEXT_TO_TIME.put("03:30", 210);
+		GAUGE_TEXT_TO_TIME.put("04:00", 240);
+		GAUGE_TEXT_TO_TIME.put("04:30", 270);
+		GAUGE_TEXT_TO_TIME.put("05:00", 300);
+		GAUGE_TEXT_TO_TIME.put("05:30", 330);
+		GAUGE_TEXT_TO_TIME.put("06:00", 360);
+		GAUGE_TEXT_TO_TIME.put("06:30", 390);
+		GAUGE_TEXT_TO_TIME.put("07:00", 420);
+		GAUGE_TEXT_TO_TIME.put("07:30", 450);
+		GAUGE_TEXT_TO_TIME.put("08:00", 480);
+		GAUGE_TEXT_TO_TIME.put("08:30", 510);
+		GAUGE_TEXT_TO_TIME.put("09:00", 540);
+		GAUGE_TEXT_TO_TIME.put("09:30", 570);
+		GAUGE_TEXT_TO_TIME.put("10:00", 600);
+		GAUGE_TEXT_TO_TIME.put("10:30", 630);
+		GAUGE_TEXT_TO_TIME.put("11:00", 660);
+		GAUGE_TEXT_TO_TIME.put("11:30", 690);
+		GAUGE_TEXT_TO_TIME.put("12:00", 720);
+		GAUGE_TEXT_TO_TIME.put("12:30", 750);
+		GAUGE_TEXT_TO_TIME.put("13:00", 780);
+		GAUGE_TEXT_TO_TIME.put("13:30", 810);
+		GAUGE_TEXT_TO_TIME.put("14:00", 840);
+		GAUGE_TEXT_TO_TIME.put("14:30", 870);
+		GAUGE_TEXT_TO_TIME.put("15:00", 900);
+		GAUGE_TEXT_TO_TIME.put("15:30", 930);
+		GAUGE_TEXT_TO_TIME.put("16:00", 960);
+		GAUGE_TEXT_TO_TIME.put("16:30", 990);
+		GAUGE_TEXT_TO_TIME.put("17:00", 1020);
+		GAUGE_TEXT_TO_TIME.put("17:30", 1050);
+		GAUGE_TEXT_TO_TIME.put("18:00", 1080);
+		GAUGE_TEXT_TO_TIME.put("18:30", 1110);
+		GAUGE_TEXT_TO_TIME.put("19:00", 1140);
+		GAUGE_TEXT_TO_TIME.put("19:30", 1170);
+		GAUGE_TEXT_TO_TIME.put("20:00", 1200);
+		GAUGE_TEXT_TO_TIME.put("20:30", 1230);
+		GAUGE_TEXT_TO_TIME.put("21:00", 1260);
+		GAUGE_TEXT_TO_TIME.put("21:30", 1290);
+		GAUGE_TEXT_TO_TIME.put("22:00", 1320);
+		GAUGE_TEXT_TO_TIME.put("22:30", 1350);
+		GAUGE_TEXT_TO_TIME.put("23:00", 1380);
+		GAUGE_TEXT_TO_TIME.put("23:30", 1410);
+	}
+}

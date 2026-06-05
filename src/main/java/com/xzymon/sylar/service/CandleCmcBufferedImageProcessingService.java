@@ -5,7 +5,9 @@ import com.xzymon.sylar.constants.IntervalHelper;
 import com.xzymon.sylar.constants.MonthPlMapping;
 import com.xzymon.sylar.constants.ValorNameHelper;
 import com.xzymon.sylar.constants.marker.MarkerCharacter;
+import com.xzymon.sylar.helper.CmcPartialCandlePrescenceRegister;
 import com.xzymon.sylar.helper.ColorReplacementHelper;
+import com.xzymon.sylar.helper.Segment;
 import com.xzymon.sylar.helper.ValuesAreaColors;
 import com.xzymon.sylar.model.*;
 import com.xzymon.sylar.predicate.*;
@@ -22,10 +24,7 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -33,7 +32,8 @@ import java.util.stream.Collectors;
 public class CandleCmcBufferedImageProcessingService implements CmcBufferedImageProcessingService {
 	private static final int CHECK_MARGIN = 3;
 	private static final int FRAME_LINE_WIDTH = 1;
-	private static final int HGAUGE_SAFE_DISTANCE = 30;
+	private static final int HGAUGE_SAFE_DISTANCE = 31;
+	private static final String EMPTY_TEXT_SEGMENT = "!!!EMPTY TEXT SEGMENT!!!";
 
 	@Value("${default.year}")
 	private Integer defaultYearForNewFilename;
@@ -142,13 +142,143 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 				// oś Y - konkretne texty odnoszą się do prowadnic poziomych
 				extractHorizontalGaugesLocations(rawDataContainer, image);
 				// tworzenie surowych świec z wykresu
-				extractRawCandles(rawDataContainer, image);
+				extractPartialCandles(rawDataContainer, image);
+				//TODO - do końca if
+				constructCandles(rawDataContainer);
 				// mapowanie położenia na osi X na czas
+				extractTextOnTimeAxis(rawDataContainer, image);
+				fillTimeAxisWithTimeReferencePoints(rawDataContainer);
+				bindCandlesToTimeReferencePoints(rawDataContainer);
 				// mapowanie połozenia na osi Y na wartość
+				bindCandlesToValueAxis(rawDataContainer);
 			}
 		}
 
 		return rawDataContainer;
+	}
+
+	private void constructCandles(CmcRawDataContainer rawDataContainer) {
+		log.info("constructCandles - no implementation");
+
+	}
+
+	private void extractTextOnTimeAxis(CmcRawDataContainer rawDataContainer, BufferedImage image) throws IOException {
+		log.info("extractTextOnTimeAxis");
+		if (rawDataContainer.isNarrowFlag()) {
+			rawDataContainer.setTimeAxisFC(CmcFrameCoordsConstants.DEFAULT_NARROW_TIME_AXIS_FRAME);
+		}
+		if (rawDataContainer.isWideFlag()){
+			rawDataContainer.setTimeAxisFC(CmcFrameCoordsConstants.DEFAULT_WIDE_TIME_AXIS_FRAME);
+		}
+		FrameCoords frameCoords = rawDataContainer.getTimeAxisFC();
+		if (frameCoords != null) {
+			TextPixelFlattenedArea timeAxisArea = rawDataContainer.getTimeAxisArea();
+			//snapshotDateTimeArea.setPixelArea(extractFrameAsImage("snapshotDateTime", rawDataContainer.getSnapshotDateTimeFC(), genPngDir, image));
+			timeAxisArea.setPixelArea(extractPixelsFromFrame(rawDataContainer.getTimeAxisFC(), image));
+			timeAxisArea.setXLength(frameCoords.getRight() - frameCoords.getLeft());
+			timeAxisArea.setYLength(frameCoords.getBottom() - frameCoords.getTop());
+			int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(timeAxisArea);
+			//scannedVertically - z tej tablicy można wnioskować jak powinna zostać rozbita przestrzeń z frameCoords
+			int minSeparatorGap = 14; //arbitralnie - zobaczymy co z tego wyjdzie
+			List<Segment> segments = new ArrayList<>();
+			int[] segmentsRegister = new int[scannedVertically.length];
+			int previousNotGapIndex = -1;
+			int gapLength;
+			// będziemy przechodzić przez scannedVertically i w segmentsRegister "pokolorujemy" "piksele" gdzie był tekst.
+			// jeżeli to była przerwa (scannedVertically[i]==0) to pozostaje 0, jeżeli nie przerwa (>0) to ustawiamy segmentsRegister[i]=1.
+			// No więc przechodzimy przez piksele i gdy po "pikselu" będącym przerwą mamy "piksel" który przerwą nie jest - to patrzymy wstecz
+			// i jeżeli poprzedni "piksel" nie będący przerwą był bliżej niż minSeparatorGap - to "piksele" między nimi
+			// oznaczamy teraz jako "nie przerwę" (czyli 1) - i w ten sposób zasypujemy te "zbyt krótkie przerwy"
+			// dzięki czemu otrzymujemy spójne obszary gdzie segmentsRegister[i] = 1 - i to są obszary do zdekonstruowania tekstu.
+			for (int i = 0; i < scannedVertically.length; i++) {
+				if (scannedVertically[i] > 0) {
+					segmentsRegister[i] = 1;
+					if (previousNotGapIndex != -1) {
+						gapLength = i - (previousNotGapIndex + 1);
+						if (gapLength > 0 && gapLength < minSeparatorGap) {
+							for (int j = previousNotGapIndex + 1; j < i; j++) {
+								segmentsRegister[j] = 1;
+							}
+						}
+					}
+					previousNotGapIndex = i;
+				}
+			}
+			// teraz będziemy przechodzić przez segmentsRegister i tworzyć obiekty reprezentujące segmenty tekstu
+			// one będą stanowić materiał na bazie którego potem wydobędziemy teksty na osi czasu nad wykresem
+			int currentSegmentStart = -1;
+			int currentSegmentEnd = -1;
+			Segment segment = null;
+			for (int i = 0; i < segmentsRegister.length; i++) {
+				if (segmentsRegister[i] == 1) {
+					if (currentSegmentStart == -1) {
+						currentSegmentStart = i;
+					}
+					currentSegmentEnd = i;
+				} else {
+					if (currentSegmentStart != -1) {
+						segment = new Segment(currentSegmentStart, currentSegmentEnd);
+						segments.add(segment);
+						log.info("text segment on time axis: " + segment);
+						currentSegmentStart = -1;
+						currentSegmentEnd = -1;
+					}
+				}
+			}
+			// na wypadek gdyby ostatni segment tekstu dotykał końca obszaru
+			if (currentSegmentStart != -1) {
+				segment = new Segment(currentSegmentStart, currentSegmentEnd);
+				segments.add(segment);
+				log.info("text segment on time axis: " + segment);
+			}
+			log.info("segments count: {}", segments.size());
+			if (segments.size() > 0) {
+				extractTimeAxisTextAreas(rawDataContainer, image, segments);
+			} else {
+				log.error("No time axis text areas found, skipping extraction");
+				throw new RuntimeException("No time axis text areas found, skipping extraction");
+			}
+		} else {
+			log.error("Time axis frame coordinates are null, skipping snapshot date time extraction");
+			throw new RuntimeException("Time axis frame coordinates are null, skipping snapshot date time extraction");
+		}
+	}
+
+	private void extractTimeAxisTextAreas(CmcRawDataContainer rawDataContainer, BufferedImage image, List<Segment> segments) throws IOException {
+		log.info("extractTimeAxisTextAreas");
+		FrameCoords timeAxisFC = rawDataContainer.getTimeAxisFC();
+		for (Segment segment : segments) {
+			FrameCoords segmentFC = new FrameCoords(timeAxisFC.getTop(), timeAxisFC.getLeft() + segment.last(), timeAxisFC.getBottom(), timeAxisFC.getLeft() + segment.first());
+			TextPixelFlattenedArea segmentArea =  new TextPixelFlattenedArea();
+			rawDataContainer.getTimeAxisTextAreaMap().put(segment.first(), segmentArea);
+			//NOTE: tu było setPixelArea - ale została zmodyfikowana kolejność - ze względu na konieczność HACK!
+			segmentArea.setXLength(segmentFC.getRight() - segmentFC.getLeft());
+			segmentArea.setYLength(segmentFC.getBottom() - segmentFC.getTop());
+			String detectedText;
+			if (segmentArea.getXLength() == 0) {
+				//HACK! - gdy wykres zaczyna się na pionowej prowadnicy - nad prowadnicą nie ma miejsca na zmieszczenie tekstu czasu - i jest pusty!
+				// ja sobie tu na to po prostu ustawiam stałą reprezentującą tą sytuację
+				detectedText = EMPTY_TEXT_SEGMENT;
+			} else {
+				segmentArea.setPixelArea(extractPixelsFromFrame(segmentFC, image));
+				int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(segmentArea);
+				detectedText = detectTrimmedCharsAndRun(scannedVertically, segmentArea, Map.of(), new AdvancedRecoloring30FontSize17ReportingUnknownTrimmedShapePredicate());
+			}
+			segmentArea.setExtractedText(detectedText);
+			log.info("extracted text for Time Axis Area: {}", detectedText);
+		}
+	}
+
+	private void fillTimeAxisWithTimeReferencePoints(CmcRawDataContainer rawDataContainer) {
+		log.info("fillTimeAxisWithTimeReferencePoints - no implementation");
+	}
+
+	private void bindCandlesToTimeReferencePoints(CmcRawDataContainer rawDataContainer) {
+		log.info("bindCandlesToTimeReferencePoints - no implementation");
+	}
+
+	private void bindCandlesToValueAxis(CmcRawDataContainer rawDataContainer) {
+		log.info("bindCandlesToValueAxis - no implementation");
 	}
 
 	@Override
@@ -337,7 +467,7 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		int[] scannedVertically = scanVerticallyRemappingToMonochromaticComparingToTopLeftPixel(valuesFrameTopLeftArea);
 		String detectedText;
 		try {
-			detectedText = detectCharAndRun(scannedVertically, valuesFrameTopLeftArea, ColorReplacementHelper.INTERVAL_OPTIONS, new AdvancedRecoloringMarkerReportingUnknownTrimmedShapePredicate());
+			detectedText = detectCharAndRun(scannedVertically, valuesFrameTopLeftArea, ColorReplacementHelper.INTERVAL_OPTIONS, new AdvancedRecoloring60MarkerReportingUnknownTrimmedShapePredicate());
 			log.info("detected: " + detectedText);
 		} catch (RuntimeException e) {
 			return false;
@@ -453,7 +583,7 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 	}
 
 	private void extrapolateHorizontalValuesToTop(List<Integer> hGaugesSafeToProcess, CmcRawDataContainer rawDataContainer) {
-		log.info("Extrapolating horizontal gauges : [0] -> top");
+		log.info("Extrapolating vertically (->Y) amongst horizontal gauges : [0] -> top");
 
 		Integer safeRefPoint0 = hGaugesSafeToProcess.get(0);
 		Integer safeRefPoint1 = hGaugesSafeToProcess.get(1);
@@ -472,21 +602,63 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 
 		BigDecimal extrapolatedValue, scaledValue;
 		Integer pixelDiff;
+
+		/* poprzednio jechało od dołu do góry - teraz niżej aktywny kod robi w odwrotnym kierunku
 		for (int i = 1; i < safeRefPoint0; i++) {
 			pixelDiff = safeRefPoint0 - i;
 			extrapolatedValue = refPoint0Value.add(perPixel.multiply(new BigDecimal(i)));
 			scaledValue = extrapolatedValue.setScale(3, RoundingMode.HALF_UP);
 			hvMap.put(pixelDiff, scaledValue);
 			log.info("Extrapolated value: [{}]: {}", pixelDiff, hvMap.get(pixelDiff));
+		}*/
+		for (int i = safeRefPoint0-1; i > 0; i--) {
+			pixelDiff = safeRefPoint0 - i;
+			extrapolatedValue = refPoint0Value.add(perPixel.multiply(new BigDecimal(i)));
+			scaledValue = extrapolatedValue.setScale(3, RoundingMode.HALF_UP);
+			hvMap.put(pixelDiff, scaledValue);
+			log.info("Extrapolated vertical (->Y) value: [{}]: {}", pixelDiff, hvMap.get(pixelDiff));
 		}
 	}
 
 	private void interpolateHorizontalValues(List<Integer> hGaugesSafeToProcess, CmcRawDataContainer rawDataContainer) {
-		log.info("Interpolating horizontal gauges : [{}] -> [{}]");
+		log.info("Interpolating vertically (->Y) amongst horizontal gauges : [gauge 0] -> [gauge {}]", hGaugesSafeToProcess.size() - 1);
+
+		Map<Integer, BigDecimal> hvMap = rawDataContainer.getHorizontalValuesMap();
+
+		// iterujemy przez kolejne pary punktów referencyjnych
+		for (int pairIndex = 0; pairIndex < hGaugesSafeToProcess.size() - 1; pairIndex++) {
+			Integer safeRefPointCurrent = hGaugesSafeToProcess.get(pairIndex);
+			Integer safeRefPointNext = hGaugesSafeToProcess.get(pairIndex + 1);
+
+			log.info("Interpolating vertically (->Y) between horizontal gauges: gauge[{}]: [{}] and gauge[{}]: [{}]", pairIndex, safeRefPointCurrent, pairIndex+1, safeRefPointNext);
+
+			BigDecimal refPointCurrentValue = rawDataContainer.getHorizontalGauges().get(safeRefPointCurrent).getParsedBDValue();
+			BigDecimal refPointNextValue = rawDataContainer.getHorizontalGauges().get(safeRefPointNext).getParsedBDValue();
+
+			// w mianowniku ułamka odejmowane są położenia pikseli: safeRefPointNext - safeRefPointCurrent
+			// bo indeksy narastają odwrotnie do kierunku w jakim narastają wartości
+			// (położenia(=indeksy) rosną "w dół", wartości rosną "w górę" na wykresie)
+			// tu potrzebna jest jedynie wartość różnicy - żeby była dodatnia trzeba odejmować w tym kierunku (no bo musi być większe minus mniejsze)
+			// można by też robić absolute - ale po co dokładać dodatkową operację ?
+			BigDecimal perPixel = refPointCurrentValue.subtract(refPointNextValue).divide(new BigDecimal(safeRefPointNext - safeRefPointCurrent), 5, RoundingMode.HALF_UP);
+
+			BigDecimal interpolatedValue, scaledValue;
+			Integer pixelDiff;
+
+			// interpolujemy wartości między punktami - zaczynamy od następnego po safeRefPointCurrent i kończymy przed safeRefPointNext
+			// (bo wartości dla safeRefPointCurrent i safeRefPointNext już są znane z gauges)
+			for (int pixelIt = safeRefPointCurrent + 1; pixelIt < safeRefPointNext; pixelIt++) {
+				pixelDiff = pixelIt - safeRefPointCurrent;
+				interpolatedValue = refPointCurrentValue.subtract(perPixel.multiply(new BigDecimal(pixelDiff)));
+				scaledValue = interpolatedValue.setScale(3, RoundingMode.HALF_UP);
+				hvMap.put(pixelIt, scaledValue);
+				log.info("Interpolated vertival (->Y) value: [{}]: {}", pixelIt, hvMap.get(pixelIt));
+			}
+		}
 	}
 
 	private void extrapolateHorizontalValuesToBottom(List<Integer> hGaugesSafeToProcess, CmcRawDataContainer rawDataContainer) {
-		log.info("Extrapolating horizontal gauges : [last] -> bottom");
+		log.info("Extrapolating vertically (->Y) amongst horizontal gauges : [last] -> bottom");
 
 		Integer safeRefPointBeforeLast = hGaugesSafeToProcess.get(hGaugesSafeToProcess.size()-2);
 		Integer safeRefPointLast = hGaugesSafeToProcess.get(hGaugesSafeToProcess.size()-1);
@@ -515,7 +687,7 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 			extrapolatedValue = refPointLastValue.subtract(perPixel.multiply(new BigDecimal(pixelDiff)));
 			scaledValue = extrapolatedValue.setScale(3, RoundingMode.HALF_UP);
 			hvMap.put(pixelIt, scaledValue);
-			log.info("Extrapolated value: [{}]: {}", pixelIt, hvMap.get(pixelIt));
+			log.info("Extrapolated vertical (->Y) value: [{}]: {}", pixelIt, hvMap.get(pixelIt));
 		}
 	}
 
@@ -587,16 +759,40 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		rawDataContainer.getHorizontalGauges().put(referencePoint, hGaugeArea);
 	}
 
-	private void extractRawCandles(CmcRawDataContainer rawDataContainer, BufferedImage image) throws IOException {
+	private void extractPartialCandles(CmcRawDataContainer rawDataContainer, BufferedImage image) throws IOException {
 		FrameCoords frameCoords = rawDataContainer.getValuesFrame();
 		PixelFlattenedArea valuesArea = new PixelFlattenedArea();
 		valuesArea.setPixelArea(extractPixelsFromFrame(frameCoords, image));
 		valuesArea.setXLength(frameCoords.getRight() - frameCoords.getLeft());
 		valuesArea.setYLength(frameCoords.getBottom() - frameCoords.getTop());
-		Map<Integer, CmcPartialCandle> ascCoreMap = scanVerticallyRemappingToMonochromaticComparingToGivenColor(valuesArea, ValuesAreaColors.ASCENDING_CORE);
-		Map<Integer, CmcPartialCandle> ascExtremeMap = scanVerticallyRemappingToMonochromaticComparingToGivenColor(valuesArea, ValuesAreaColors.ASCENDING_EXTREME);
-		Map<Integer, CmcPartialCandle> descCoreMap = scanVerticallyRemappingToMonochromaticComparingToGivenColor(valuesArea, ValuesAreaColors.DESCENDING_CORE);
-		Map<Integer, CmcPartialCandle> descExtremeMap = scanVerticallyRemappingToMonochromaticComparingToGivenColor(valuesArea, ValuesAreaColors.DESCENDING_EXTREME);
+		log.info("Extracting partial candles");
+		rawDataContainer.setAscCoreMap(scanVerticallySearchingForGivenColorVariants(valuesArea, ValuesAreaColors.ASCENDING_CORE));
+		rawDataContainer.setAscExtremalMap(scanVerticallySearchingForGivenColorVariants(valuesArea, ValuesAreaColors.ASCENDING_EXTREME));
+		rawDataContainer.setDescCoreMap(scanVerticallySearchingForGivenColorVariants(valuesArea, ValuesAreaColors.DESCENDING_CORE));
+		rawDataContainer.setDescExtremalMap(scanVerticallySearchingForGivenColorVariants(valuesArea, ValuesAreaColors.DESCENDING_EXTREME));
+
+		CmcPartialCandlePrescenceRegister cmcPartialCandlePrescenceRegister = new CmcPartialCandlePrescenceRegister(valuesArea.getXLength());
+		rawDataContainer.setPartialCandlePresenceRegister(cmcPartialCandlePrescenceRegister);
+
+		for (Map.Entry<Integer, CmcPartialCandle> entry : rawDataContainer.getAscCoreMap().entrySet()) {
+			cmcPartialCandlePrescenceRegister.put(entry.getValue());
+		}
+		for (Map.Entry<Integer, CmcPartialCandle> entry : rawDataContainer.getAscExtremalMap().entrySet()) {
+			cmcPartialCandlePrescenceRegister.put(entry.getValue());
+		}
+		for (Map.Entry<Integer, CmcPartialCandle> entry : rawDataContainer.getDescCoreMap().entrySet()) {
+			cmcPartialCandlePrescenceRegister.put(entry.getValue());
+		}
+		for (Map.Entry<Integer, CmcPartialCandle> entry : rawDataContainer.getDescExtremalMap().entrySet()) {
+			cmcPartialCandlePrescenceRegister.put(entry.getValue());
+		}
+		log.info(cmcPartialCandlePrescenceRegister.getStats());
+
+		if (!cmcPartialCandlePrescenceRegister.isCorrect()) {
+			throw new RuntimeException("Partial candles are incorrect");
+		}
+
+		log.info("Partial candles extraction finished");
 	}
 
 	private static int[] extractFrameAsImage(String fileName, FrameCoords frameCoords, String genPngDir, BufferedImage image) throws IOException {
@@ -699,35 +895,138 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		return result;
 	}
 
-	private static Map<Integer, CmcPartialCandle> scanVerticallyRemappingToMonochromaticComparingToGivenColor(PixelFlattenedArea pixelFlattenedArea, ValuesAreaColors givenColor) {
-		return scanVerticallyRemappingToMonochromaticComparingToGivenColor(pixelFlattenedArea.getPixelArea(), pixelFlattenedArea.getXLength(), pixelFlattenedArea.getYLength(), givenColor);
+	private static Map<Integer, CmcPartialCandle> scanVerticallySearchingForGivenColorVariants(PixelFlattenedArea pixelFlattenedArea, ValuesAreaColors mainColor) {
+		switch (mainColor) {
+			case ASCENDING_CORE -> {
+				return scanVerticallySearchingForGivenColorWith1SupportingColors(
+						pixelFlattenedArea.getPixelArea(), pixelFlattenedArea.getXLength(), pixelFlattenedArea.getYLength(),
+						ValuesAreaColors.ASCENDING_CORE, ValuesAreaColors.CURRENT_LEVEL_ASCENDING_CORE);
+			}
+			case ASCENDING_EXTREME -> {
+				return scanVerticallySearchingForGivenColorWith2SupportingColors(
+						pixelFlattenedArea.getPixelArea(), pixelFlattenedArea.getXLength(), pixelFlattenedArea.getYLength(),
+						ValuesAreaColors.ASCENDING_EXTREME, ValuesAreaColors.GAUGE_ASCENDING_EXTREME, ValuesAreaColors.CURRENT_LEVEL_ASCENDING_EXTREME);
+			}
+			case DESCENDING_CORE -> {
+				return scanVerticallySearchingForGivenColorWith1SupportingColors(
+						pixelFlattenedArea.getPixelArea(), pixelFlattenedArea.getXLength(), pixelFlattenedArea.getYLength(),
+						ValuesAreaColors.DESCENDING_CORE, ValuesAreaColors.CURRENT_LEVEL_DESCENDING_CORE);
+			}
+			case DESCENDING_EXTREME -> {
+				return scanVerticallySearchingForGivenColorWith2SupportingColors(
+						pixelFlattenedArea.getPixelArea(), pixelFlattenedArea.getXLength(), pixelFlattenedArea.getYLength(),
+						ValuesAreaColors.DESCENDING_EXTREME, ValuesAreaColors.GAUGE_DESCENDING_EXTREME, ValuesAreaColors.CURRENT_LEVEL_DESCENDING_EXTREME);
+			}
+			default -> throw new IllegalArgumentException("Unsupported color variant: " + mainColor);
+		}
 	}
 
 	/**
-	 * Scans a 2D pixel array vertically and remaps the data to a monochromatic representation,
-	 * comparing each pixel's value to a given color. The result is an array where each element
-	 * represents the count of pixels in each column that are as same as the given color.
+	 * W sensie biznesowym istnieją 2 warianty tej metody.
+	 * Ten wariant jest dedykowany konkretnie dla poszukiwania knotów świec.
 	 *
-	 * @param pixelArray an array of pixel values representing a 2D image in row-major order
+	 * Ta metoda ma jeszcze wariant zoptymalizowany dla sytuacji, gdy jest tylko jeden kolor pomocniczy.
+	 *
+	 * Pomysł jest taki: do tej metody trafia cały wykres zmieniony na jednowymiarową tablicę.
+	 * Jednowymiarowa tablica pozwala na łatwiejsze iterowanie po kolumnach (X) i wierszach (Y).
+	 * Interpretacja jednowymiarowej tablicy jest taka: zawiera włożone piksele kolejno wierszami (z góry w dół, od lewej do prawej).
+	 *
+	 * 1. dla każdego X (kolumny) sprawdzamy czy w tej kolumnie występuje dany kolor
+	 * - jeśli tak, to zapisujemy minimalny i maksymalny Y (wiersz) na którym występuje dany kolor
+	 * - znacznikiem tego czy w danej kolumnie znaleziono dany kolor jest wartość max > -1
+	 * 2. na koniec tworzymy obiekt CmcPartialCandle i zapisujemy go w mapie
+	 *
+	 * Parametrami metody są 3 kolory: mainColor, firstSupportingColor, secondSupportingColor
+	 * mainColor - to główny kolor, który ma być szukany. Tworzony obiekt CmcPartialCandle będzie scharakteryzowany tym kolorem.
+	 * firstSupportingColor - to kolor pomocniczy, którego wystąpienie jest traktowane tak jakby wystąpił ten główny.
+	 * secondSupportingColor - analogicznie jak firstSupportingColor, ale dla drugiego koloru pomocniczego.
+	 *
+	 * Istnienie podziału na 3 kolory wynika z tego, że kolor knota świecy może być przesłonięty białym kolorem wartości bieżącej na wykresie
+	 * lub może mieć spod spodu przebitkę prowadnicy poziomej lub pionowej - co zmienia jego kolor, choć na szczęście dalej taki kolor jest
+	 * jednoznaczny - tzn. przykładowo jeżeli mamy świecę wznoszącą i kolor konkretnego piksela jej knota jest zmodyfikowany przez kolor prowadnicy
+	 * - to i tak jednoznacznie po tym kolorze można rozpoznać, że jest to knot świecy wznoszącej.
+	 *
+	 * @param pixelArray an 1D array of pixel values representing a 2D image in row-major order
 	 * @param arrWidth the width of the 2D pixel grid
 	 * @param arrHeight the height of the 2D pixel grid
-	 * @param givenColor the color value to compare each pixel against
+	 * @param mainColor the color value to compare each pixel against
+	 * @param firstSupportingColor the color value to compare each pixel against
+	 * @param secondSupportingColor the color value to compare each pixel against
 	 * @return an integer array representing the count of pixels in each column that differ
 	 *         from the given color
 	 */
-	private static Map<Integer, CmcPartialCandle> scanVerticallyRemappingToMonochromaticComparingToGivenColor(int[] pixelArray, int arrWidth, int arrHeight, ValuesAreaColors givenColor) {
+	private static Map<Integer, CmcPartialCandle> scanVerticallySearchingForGivenColorWith2SupportingColors(int[] pixelArray, int arrWidth, int arrHeight, ValuesAreaColors mainColor, ValuesAreaColors firstSupportingColor, ValuesAreaColors secondSupportingColor) {
+		CmcPartialCandle cpc = null;
 		Map<Integer, CmcPartialCandle> result = new HashMap<>();
-		int max = -1;
-		int min = arrHeight;
-		for (int i = 0; i < arrHeight; i++) {
-			for (int j = 0; j < arrWidth; j++) {
-				if (pixelArray[i*arrWidth + j] == givenColor.getColor()) {
+		for (int i = 0; i < arrWidth; i++) { //idzie po X
+			int max = -1;
+			int min = arrHeight;
+			for (int j = 0; j < arrHeight; j++) {  //idzie po Y
+				int pixelColor = pixelArray[j*arrWidth + i];
+				if (pixelColor == mainColor.getColor()) {
 					max = j > max ? j : max;
 					min = j < min ? j : min;
+				} else {
+					if (pixelColor == firstSupportingColor.getColor()) {
+						max = j > max ? j : max;
+						min = j < min ? j : min;
+					} else if (pixelColor == secondSupportingColor.getColor()) {
+						max = j > max ? j : max;
+						min = j < min ? j : min;
+					}
 				}
 			}
 			if (max > -1) {
-				result.put(i, new CmcPartialCandle(i, min, max, givenColor));
+				cpc = new CmcPartialCandle(i, min, max, mainColor);
+				result.put(i, cpc);
+				log.info("Found partial candle on X={} : {}", i, cpc);
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * W sensie biznesowym istnieją 2 warianty tej metody.
+	 * Ten wariant jest dedykowany konkretnie dla poszukiwania trzonów świec.
+	 *
+	 * To zoptymalizowana wersja metody scanVerticallySearchingForGivenColorWith2SupportingColors.
+	 * Różni się tym, że zawiera sprawdzenie tylko jednego koloru wspierającego.
+	 *
+	 * Trzon świecy na wykresie nie pozwala na przebijanie prowadnic. Zatem modyfikacja koloru trzonu jest możliwa tylko
+	 * gdy zostanie przesłonięta białym kolorem wartości bieżącej na wykresie.
+	 * Z tego widać, że dla trzonu możliwe są tylko 2 warianty koloru - więc i metoda przyjmuje tylko 2 kolory.
+	 *
+	 * Szerszy opis idei realizowanej przez tą metodę jest dostarczony w opisie wspomnianego drugiego wariantu tej metody.
+	 * @see #scanVerticallySearchingForGivenColorWith2SupportingColors(int[], int, int, ValuesAreaColors, ValuesAreaColors, ValuesAreaColors)
+	 * @param pixelArray
+	 * @param arrWidth
+	 * @param arrHeight
+	 * @param mainColor
+	 * @param firstSupportingColor
+	 * @return
+	 */
+	private static Map<Integer, CmcPartialCandle> scanVerticallySearchingForGivenColorWith1SupportingColors(int[] pixelArray, int arrWidth, int arrHeight, ValuesAreaColors mainColor, ValuesAreaColors firstSupportingColor) {
+		CmcPartialCandle cpc = null;
+		Map<Integer, CmcPartialCandle> result = new HashMap<>();
+		for (int i = 0; i < arrWidth; i++) { //idzie po X
+			int max = -1;
+			int min = arrHeight;
+			for (int j = 0; j < arrHeight; j++) {  //idzie po Y
+				int pixelColor = pixelArray[j*arrWidth + i];
+				if (pixelColor == mainColor.getColor()) {
+					max = j > max ? j : max;
+					min = j < min ? j : min;
+				} else {
+					if (pixelColor == firstSupportingColor.getColor()) {
+						max = j > max ? j : max;
+						min = j < min ? j : min;
+					}
+				}
+			}
+			if (max > -1) {
+				cpc = new CmcPartialCandle(i, min, max, mainColor);
+				result.put(i, cpc);
+				log.info("Found partial candle on X={} : {}", i, cpc);
 			}
 		}
 		return result;

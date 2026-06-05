@@ -1,7 +1,7 @@
 package com.xzymon.sylar.service;
 
 import com.xzymon.sylar.constants.StqChartType;
-import com.xzymon.sylar.constants.DayBy15MinuteIntervalsForBarChart;
+import com.xzymon.sylar.constants.interval.DayBy15MinuteIntervalsForBarChart;
 import com.xzymon.sylar.helper.DatesHelper;
 import com.xzymon.sylar.model.NipponCandle;
 import com.xzymon.sylar.model.StqRawDataContainer;

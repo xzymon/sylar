@@ -13,7 +13,7 @@ import com.xzymon.sylar.helper.ColorReplacementHelper;
  * Jeśli tak, to zwraca oryginalny kolor piksela, w przeciwnym wypadku zwraca ustaloną wartość podmiany.
  * Ustalona wartość podmiany to czarny kolor (BELOW_MARGIN_REPLACEMENT).
  */
-public class AdvancedRecoloringMarkerReportingUnknownTrimmedShapePredicate extends MarkerReportingUnknownTrimmedShapePredicate {
+public class AdvancedRecoloring60MarkerReportingUnknownTrimmedShapePredicate extends MarkerReportingUnknownTrimmedShapePredicate {
 	public static final int CHANNEL_RED_MARGIN = 0x60;
 	public static final int CHANNEL_GREEN_MARGIN = 0x60;
 	public static final int CHANNEL_BLUE_MARGIN = 0x60;

@@ -1,4 +1,4 @@
-package com.xzymon.sylar.constants;
+package com.xzymon.sylar.constants.interval;
 
 import java.util.HashMap;
 import java.util.Map;
