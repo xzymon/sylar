@@ -49,6 +49,16 @@ public class CmcRawDataContainer {
     private Map<Integer, TextPixelFlattenedArea> verticalGauges;  //mapa dla prowadnic pionowych - obszar obrazu do ekstrakcji tekstu
 
     private Map<Integer, BigDecimal> horizontalValuesMap;//mapowanie położenia na wykresie na wartość
+
+    private FrameCoords timeAxisFC;
+    private TextPixelFlattenedArea timeAxisArea;
+    private Map<Integer, TextPixelFlattenedArea> timeAxisTextAreaMap;
+
+    private Map<Integer, CmcPartialCandle> ascCoreMap;
+    private Map<Integer, CmcPartialCandle> ascExtremalMap;
+    private Map<Integer, CmcPartialCandle> descCoreMap;
+    private Map<Integer, CmcPartialCandle> descExtremalMap;
+
     private List<RawDataNipponCandle> candles;
 
     public CmcRawDataContainer() {
@@ -81,6 +91,13 @@ public class CmcRawDataContainer {
         this.horizontalGauges = new HashMap<>();
         this.verticalGauges = new HashMap<>();
         this.horizontalValuesMap = new HashMap<>();
+        this.timeAxisFC = null;
+        this.timeAxisArea = new TextPixelFlattenedArea();
+        this.timeAxisTextAreaMap = new HashMap<>();
+        this.ascCoreMap = new HashMap<>();
+        this.ascExtremalMap = new HashMap<>();
+        this.descCoreMap = new HashMap<>();
+        this.descExtremalMap = new HashMap<>();
         this.candles = new ArrayList<>();
     }
 }

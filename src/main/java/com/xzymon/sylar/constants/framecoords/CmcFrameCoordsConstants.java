@@ -19,5 +19,7 @@ public class CmcFrameCoordsConstants {
 	public static final FrameCoords DEFAULT_WIDE_TOOLBOX_VALUES_FRAME = new FrameCoords(414, 2618, 1889, 10);
 
 	public static final FrameCoords DEFAULT_NARROW_VALUES_FRAME = new FrameCoords(414, 1738, 1989, 10);
+	public static final FrameCoords DEFAULT_NARROW_TIME_AXIS_FRAME = new FrameCoords(376, 1738, 404, 10);
 	public static final FrameCoords DEFAULT_WIDE_VALUES_FRAME = new FrameCoords(414, 2618, 1989, 10);
+	public static final FrameCoords DEFAULT_WIDE_TIME_AXIS_FRAME = new FrameCoords(376, 2618, 404, 10);
 }
