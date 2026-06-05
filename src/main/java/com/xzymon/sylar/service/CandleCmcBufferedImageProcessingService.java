@@ -5,6 +5,7 @@ import com.xzymon.sylar.constants.IntervalHelper;
 import com.xzymon.sylar.constants.MonthPlMapping;
 import com.xzymon.sylar.constants.ValorNameHelper;
 import com.xzymon.sylar.constants.marker.MarkerCharacter;
+import com.xzymon.sylar.helper.CmcPartialCandlePrescenceRegister;
 import com.xzymon.sylar.helper.ColorReplacementHelper;
 import com.xzymon.sylar.helper.Segment;
 import com.xzymon.sylar.helper.ValuesAreaColors;
@@ -158,10 +159,11 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 
 	private void constructCandles(CmcRawDataContainer rawDataContainer) {
 		log.info("constructCandles - no implementation");
+
 	}
 
 	private void extractTextOnTimeAxis(CmcRawDataContainer rawDataContainer, BufferedImage image) throws IOException {
-		log.info("extractTextOnTimeAxis - no implementation");
+		log.info("extractTextOnTimeAxis");
 		if (rawDataContainer.isNarrowFlag()) {
 			rawDataContainer.setTimeAxisFC(CmcFrameCoordsConstants.DEFAULT_NARROW_TIME_AXIS_FRAME);
 		}
@@ -243,6 +245,7 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 	}
 
 	private void extractTimeAxisTextAreas(CmcRawDataContainer rawDataContainer, BufferedImage image, List<Segment> segments) throws IOException {
+		log.info("extractTimeAxisTextAreas");
 		FrameCoords timeAxisFC = rawDataContainer.getTimeAxisFC();
 		for (Segment segment : segments) {
 			FrameCoords segmentFC = new FrameCoords(timeAxisFC.getTop(), timeAxisFC.getLeft() + segment.last(), timeAxisFC.getBottom(), timeAxisFC.getLeft() + segment.first());
@@ -767,6 +770,28 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		rawDataContainer.setAscExtremalMap(scanVerticallySearchingForGivenColorVariants(valuesArea, ValuesAreaColors.ASCENDING_EXTREME));
 		rawDataContainer.setDescCoreMap(scanVerticallySearchingForGivenColorVariants(valuesArea, ValuesAreaColors.DESCENDING_CORE));
 		rawDataContainer.setDescExtremalMap(scanVerticallySearchingForGivenColorVariants(valuesArea, ValuesAreaColors.DESCENDING_EXTREME));
+
+		CmcPartialCandlePrescenceRegister cmcPartialCandlePrescenceRegister = new CmcPartialCandlePrescenceRegister(valuesArea.getXLength());
+		rawDataContainer.setPartialCandlePresenceRegister(cmcPartialCandlePrescenceRegister);
+
+		for (Map.Entry<Integer, CmcPartialCandle> entry : rawDataContainer.getAscCoreMap().entrySet()) {
+			cmcPartialCandlePrescenceRegister.put(entry.getValue());
+		}
+		for (Map.Entry<Integer, CmcPartialCandle> entry : rawDataContainer.getAscExtremalMap().entrySet()) {
+			cmcPartialCandlePrescenceRegister.put(entry.getValue());
+		}
+		for (Map.Entry<Integer, CmcPartialCandle> entry : rawDataContainer.getDescCoreMap().entrySet()) {
+			cmcPartialCandlePrescenceRegister.put(entry.getValue());
+		}
+		for (Map.Entry<Integer, CmcPartialCandle> entry : rawDataContainer.getDescExtremalMap().entrySet()) {
+			cmcPartialCandlePrescenceRegister.put(entry.getValue());
+		}
+		log.info(cmcPartialCandlePrescenceRegister.getStats());
+
+		if (!cmcPartialCandlePrescenceRegister.isCorrect()) {
+			throw new RuntimeException("Partial candles are incorrect");
+		}
+
 		log.info("Partial candles extraction finished");
 	}
 

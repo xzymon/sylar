@@ -1,5 +1,6 @@
 package com.xzymon.sylar.model;
 
+import com.xzymon.sylar.helper.CmcPartialCandlePrescenceRegister;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -58,6 +59,8 @@ public class CmcRawDataContainer {
     private Map<Integer, CmcPartialCandle> ascExtremalMap;
     private Map<Integer, CmcPartialCandle> descCoreMap;
     private Map<Integer, CmcPartialCandle> descExtremalMap;
+
+    private CmcPartialCandlePrescenceRegister partialCandlePresenceRegister;
 
     private List<RawDataNipponCandle> candles;
 
