@@ -28,7 +28,7 @@ public class CmcProcessFilesConsumer implements ProcessFilesConsumer {
 			log.info(String.format("Processing file: %1$s", pathsDto.getPathToInputFile().getFileName().toString()));
 			CmcRawDataContainer rawDataContainer = processSingleFileForPath(pathsDto.getPathToInputFile());
 			log.info(String.format("File %1$s processed.", pathsDto.getPathToInputFile().getFileName().toString()));
-			moveFile(pathsDto.getPathToInputFile(), pathsDto.getLoadingDirectoryProcessed(), rawDataContainer.getPngFileNewName());
+			moveFile(pathsDto.getPathToInputFile(), pathsDto.getLoadingDirectoryProcessed(), rawDataContainer.getSnapshotDateTimeBasedFileNameForPNGFileRenamingMode());
 			log.info(String.format("File %1$s moved to processed directory.", pathsDto.getPathToInputFile().getFileName().toString()));
 			//storeInCsvFile(pathsDto.getGeneratedCsvDirectory(), csvOutput);
 		} catch (IOException e) {
