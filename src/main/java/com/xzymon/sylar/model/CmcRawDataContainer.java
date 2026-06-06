@@ -1,6 +1,8 @@
 package com.xzymon.sylar.model;
 
-import com.xzymon.sylar.helper.CmcPartialCandlePrescenceRegister;
+import com.xzymon.sylar.constants.Interval;
+import com.xzymon.sylar.constants.UIVersion;
+import com.xzymon.sylar.helper.CmcPartialCandlePresenceRegister;
 import lombok.Data;
 
 import java.math.BigDecimal;
@@ -30,11 +32,11 @@ public class CmcRawDataContainer {
     private boolean narrowFlag;
     private boolean wideFlag;
 
+    private UIVersion uiVersion = UIVersion.V01;
 
-
-
-    private String dateTimePartForNewFileName;
-    private String pngFileNewName;
+    private String dateTimePartForPNGFileRenamingMode;
+    private Interval interval;
+    private String snapshotDateTimeBasedFileNameForPNGFileRenamingMode;
 
     private FrameCoords valorNameFC;
     private TextPixelFlattenedArea valorNameArea;        //nazwa waloru - obszar obrazu do ekstrakcji tekstu
@@ -60,7 +62,9 @@ public class CmcRawDataContainer {
     private Map<Integer, CmcPartialCandle> descCoreMap;
     private Map<Integer, CmcPartialCandle> descExtremalMap;
 
-    private CmcPartialCandlePrescenceRegister partialCandlePresenceRegister;
+    private CmcPartialCandlePresenceRegister partialCandlePresenceRegister;
+
+    private List<CmcPartialCandlesCollector> partialCandlesCollectorList;
 
     private List<RawDataNipponCandle> candles;
 
@@ -82,7 +86,7 @@ public class CmcRawDataContainer {
         this.narrowFlag = false;
         this.wideFlag = false;
 
-        this.pngFileNewName = null;                     //bieda kod - ale niech będzie jawne że domyślnie null
+        this.snapshotDateTimeBasedFileNameForPNGFileRenamingMode = null;                     //bieda kod - ale niech będzie jawne że domyślnie null
         this.valorNameFC = new FrameCoords();
         this.valorNameArea = new TextPixelFlattenedArea();
         this.intervalLine1FC = new FrameCoords();

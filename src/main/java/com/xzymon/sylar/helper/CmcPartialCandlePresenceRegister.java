@@ -2,12 +2,26 @@ package com.xzymon.sylar.helper;
 
 import com.xzymon.sylar.model.CmcPartialCandle;
 
-public class CmcPartialCandlePrescenceRegister {
+public class CmcPartialCandlePresenceRegister {
 	private CmcPartialCandlePresence[] candlePrescence;
 	private PresenceStats presenceStats;
 
-	public CmcPartialCandlePrescenceRegister(int length) {
+	public CmcPartialCandlePresenceRegister(int length) {
 		this.candlePrescence = new CmcPartialCandlePresence[length];
+	}
+
+	public int getLength() {
+		return candlePrescence.length;
+	}
+
+	public CmcPartialCandlePresence getCandlePresenceAtReferencePoint(int referencePoint) {
+		if (referencePoint < 0) {
+			throw new IllegalArgumentException("Reference point must be non-negative");
+		}
+		if (referencePoint >= candlePrescence.length) {
+			throw new IllegalArgumentException("Reference point must be less than candlePrescence.length");
+		}
+		return candlePrescence[referencePoint];
 	}
 
 	public void put(CmcPartialCandle candle) {
@@ -92,14 +106,14 @@ public class CmcPartialCandlePrescenceRegister {
 				if (candlePresence.getAscendingCore() != null) {
 					stats.ascendingCore++;
 				}
-				if (candlePresence.getDescendingCore() != null) {
-					stats.descendingCore++;
+				if (candlePresence.getAscendingExtreme() != null) {
+					stats.ascendingExtreme++;
 				}
 				if (candlePresence.getAscendingCore() != null && candlePresence.getAscendingExtreme() != null) {
 					stats.bothAscending++;
 				}
-				if (candlePresence.getAscendingExtreme() != null) {
-					stats.ascendingExtreme++;
+				if (candlePresence.getDescendingCore() != null) {
+					stats.descendingCore++;
 				}
 				if (candlePresence.getDescendingExtreme() != null) {
 					stats.descendingExtreme++;

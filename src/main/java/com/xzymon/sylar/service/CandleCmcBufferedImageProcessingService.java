@@ -1,14 +1,13 @@
 package com.xzymon.sylar.service;
 
+import com.xzymon.sylar.constants.Interval;
 import com.xzymon.sylar.constants.framecoords.CmcFrameCoordsConstants;
 import com.xzymon.sylar.constants.IntervalHelper;
 import com.xzymon.sylar.constants.MonthPlMapping;
 import com.xzymon.sylar.constants.ValorNameHelper;
 import com.xzymon.sylar.constants.marker.MarkerCharacter;
-import com.xzymon.sylar.helper.CmcPartialCandlePrescenceRegister;
-import com.xzymon.sylar.helper.ColorReplacementHelper;
-import com.xzymon.sylar.helper.Segment;
-import com.xzymon.sylar.helper.ValuesAreaColors;
+import com.xzymon.sylar.exception.*;
+import com.xzymon.sylar.helper.*;
 import com.xzymon.sylar.model.*;
 import com.xzymon.sylar.predicate.*;
 import lombok.extern.slf4j.Slf4j;
@@ -81,31 +80,31 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 				//ale w tym wypadku nie wiadomo czy wykres jest wąski czy szeroki
 			}
 
+			extractInterval(rawDataContainer);
 
 			if (renameFiles) {
-				preparePngNewName(rawDataContainer);
+				prepareChartSnapshotDateTimeBasedFileNameForPNGFileRenamingMode(rawDataContainer);
 			}
 
-        /*
-        FrameCoords valuesFC = new FrameCoords( 381, 1852, 1897, 0);
-        int[] valuesPixels = extractFrameAsImage("values", valuesFC, genPngDir, image);
-
-        FrameCoords valuesAloneFC = new FrameCoords( 413, 1740, 1890, 10);
-        int[] valuesAlonePixels = extractFrameAsImage("valuesAlone", valuesAloneFC, genPngDir, image);
-
-        FrameCoords verticalGaugesFC = new FrameCoords( 381, 1852, 406, 0);
-        int[] verticalGaugesPixels = extractFrameAsImage("verticalGauges", verticalGaugesFC, genPngDir, image);
-
-        FrameCoords horizontalGaugesFC = new FrameCoords( 414, 1852, 1890, 1739);
-        int[] horizontalGaugesPixels = extractFrameAsImage("horizontalGauges", horizontalGaugesFC, genPngDir, image);
-         */
-		} else {
+        } else {
 			if (renameFiles) {
-				String ordinalNumber = rawDataContainer.getSourceFileName().substring(3, 8);
-				String proposedNewName = String.format("nc_%1$s%2$s.png", rawDataContainer.getDateTimePartForNewFileName(), ordinalNumber);
-				rawDataContainer.setPngFileNewName(proposedNewName);
+				prepareNotChartSnapshotDateTimeBasedFileNameForPNGFileRenamingMode(rawDataContainer);
 			}
 		}
+
+		/**TODO:
+		 * teraz do ustalenia - co dokładnie jest ustawiane w rawDataContainer do tego momentu
+		 * bo to jest moment do którego powinien pracować serwis w renamingMode
+		 * lub w którym powinien mieć zrekonstruowane wszystkie wartości na bazie samej nazwy pliku
+		 * gdy ma wykonać właściwe przetwarzanie.
+		**/
+		/** WAŻNA sprawa dotycząca flag w nazwie pliku - toolboxFlag, narrowFlag, wideFlag:
+		 * - stan narrowFlag i wideFlag jest jeszcze później (tzn. poniżej) modyfikowany, zatem
+		 *   celem dostarczenia stanu flag w nazwie pliku w PNG renaming mode nie jest dostarczenie
+		 *   ostatecznego stanu flag, tylko dostaczenie stanu takim jakim on był do tego momentu.
+		 * I to jest OK - bo po odtworzeniu stanu przetwarzanie pójdzie dalej - i jeśli będzie taka potrzeba
+		 * to ten stan będzie dalej modyfikowany.
+		**/
 
 		if (!rawDataContainer.isNotChart()) {
 			log.debug("!rawDataContainer.isNotChart()");
@@ -143,23 +142,80 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 				extractHorizontalGaugesLocations(rawDataContainer, image);
 				// tworzenie surowych świec z wykresu
 				extractPartialCandles(rawDataContainer, image);
-				//TODO - do końca if
-				constructCandles(rawDataContainer);
+				mergePartialCandles(rawDataContainer);
 				// mapowanie położenia na osi X na czas
 				extractTextOnTimeAxis(rawDataContainer, image);
-				fillTimeAxisWithTimeReferencePoints(rawDataContainer);
-				bindCandlesToTimeReferencePoints(rawDataContainer);
+				//fillTimeAxisWithTimeReferencePoints(rawDataContainer);
+				bindCandleCollectorsToTimeReferencePoints(rawDataContainer);
 				// mapowanie połozenia na osi Y na wartość
 				bindCandlesToValueAxis(rawDataContainer);
+				createRawDataNipponCandles(rawDataContainer);
 			}
 		}
 
 		return rawDataContainer;
 	}
 
-	private void constructCandles(CmcRawDataContainer rawDataContainer) {
-		log.info("constructCandles - no implementation");
+	private void mergePartialCandles(CmcRawDataContainer rawDataContainer) {
+		log.info("mergePartialCandles");
+		CmcPartialCandlePresenceRegister register = rawDataContainer.getPartialCandlePresenceRegister();
+		List<CmcPartialCandlesCollector> partialCandlesCollectorList = new ArrayList<>();
+		rawDataContainer.setPartialCandlesCollectorList(partialCandlesCollectorList);
+		CmcPartialCandlesCollector collector = null;
+		CmcPartialCandle partialCandle;
+		int i = 0;
+		int currCollectorIndex = 0;
+		while (i < register.getLength()) {
+			CmcPartialCandlePresence presence = register.getCandlePresenceAtReferencePoint(i);
+			if (presence != null) {
+				try {
+					partialCandle = presence.getAscendingCore();
+					collector = getCmcPartialCandlesCollector(partialCandle, collector);
+					partialCandle = presence.getAscendingExtreme();
+					if (partialCandle != null) collector.join(partialCandle);
+					partialCandle = presence.getDescendingCore();
+					collector = getCmcPartialCandlesCollector(partialCandle, collector);
+					partialCandle = presence.getDescendingExtreme();
+					if (partialCandle != null) collector.join(partialCandle);
+				} catch (ColorMismatchPartialCandleException | SizePartialCandleException e) {
+					log.warn("Exception while merging partial candles, but will regenerate by repeating iteration");
+					log.warn("Exception was: {}", e.getMessage());
+					partialCandlesCollectorList.add(collector);
+					logAddedCollector(currCollectorIndex, collector);
+					currCollectorIndex++;
+					collector = null;
+					continue;
+				}
+			} else {
+				if (collector != null) {
+					partialCandlesCollectorList.add(collector);
+					logAddedCollector(currCollectorIndex, collector);
+					currCollectorIndex++;
+					collector = null;
+				}
+			}
+			i++;
+		}
+		if (collector != null) {
+			partialCandlesCollectorList.add(collector);
+			logAddedCollector(currCollectorIndex, collector);
+		}
+		log.info("mergePartialCandles: adding collectors done - collectors count: {}", partialCandlesCollectorList.size());
+	}
 
+	private static void logAddedCollector(int currCollectorIndex, CmcPartialCandlesCollector collector) {
+		log.info("Collector[{}] initial X at: {}", currCollectorIndex, collector.getInitialPartialCandle().getReferencePointOnAxis());
+	}
+
+	private static CmcPartialCandlesCollector getCmcPartialCandlesCollector(CmcPartialCandle partialCandle, CmcPartialCandlesCollector collector) {
+		if (partialCandle != null) {
+			if (collector == null) {
+				collector = new CmcPartialCandlesCollector(partialCandle);
+			} else {
+				collector.join(partialCandle);
+			}
+		}
+		return collector;
 	}
 
 	private void extractTextOnTimeAxis(CmcRawDataContainer rawDataContainer, BufferedImage image) throws IOException {
@@ -270,15 +326,19 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 	}
 
 	private void fillTimeAxisWithTimeReferencePoints(CmcRawDataContainer rawDataContainer) {
-		log.info("fillTimeAxisWithTimeReferencePoints - no implementation");
+		log.info("fillTimeAxisWithTimeReferencePoints - no implementation yet");
 	}
 
-	private void bindCandlesToTimeReferencePoints(CmcRawDataContainer rawDataContainer) {
-		log.info("bindCandlesToTimeReferencePoints - no implementation");
+	private void bindCandleCollectorsToTimeReferencePoints(CmcRawDataContainer rawDataContainer) {
+		log.info("bindCandleCollectorsToTimeReferencePoints - no implementation yet");
 	}
 
 	private void bindCandlesToValueAxis(CmcRawDataContainer rawDataContainer) {
-		log.info("bindCandlesToValueAxis - no implementation");
+		log.info("bindCandlesToValueAxis - no implementation yet");
+	}
+
+	private void createRawDataNipponCandles(CmcRawDataContainer rawDataContainer) {
+		log.info("createRawDataNipponCandles - no implementation yet");
 	}
 
 	@Override
@@ -286,8 +346,42 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		return null;
 	}
 
-	private static void preparePngNewName(CmcRawDataContainer rawDataContainer) {
-		String datePart = rawDataContainer.getDateTimePartForNewFileName();
+	private static void extractInterval(CmcRawDataContainer rawDataContainer) {
+		String intervalText = null;
+		if (rawDataContainer.isToolboxFlag()) {
+			String rawIntevalLine1 = rawDataContainer.getIntervalLine1Area().getExtractedText();
+			log.info("extractInterval: rawIntevalLine1: {}", rawIntevalLine1);
+			String rawIntevalLine2 = rawDataContainer.getIntervalLine2Area().getExtractedText();
+			log.info("extractInterval: rawIntevalLine2: {}", rawIntevalLine2);
+
+			if (rawIntevalLine1 != null && rawIntevalLine2 != null) {
+				String mappedIntervalLine1 = IntervalHelper.LENGTHS_MAP.get(rawIntevalLine1);
+				if (mappedIntervalLine1 == null) {
+					throw new IntervalExtractException("Unknown interval line 1 text: " + rawIntevalLine1);
+				}
+				String mappedIntervalLine2 = IntervalHelper.UNITS_MAP.get(rawIntevalLine2);
+				if (mappedIntervalLine2 == null) {
+					throw new IntervalExtractException("Unknown interval line 2 text: " + rawIntevalLine2);
+				}
+				intervalText = mappedIntervalLine1 + mappedIntervalLine2;
+			}
+		} else {
+			String rawIntervalOptions = rawDataContainer.getIntervalOptionsArea().getExtractedText();
+			log.info("extractInterval: rawIntervalOptions: {}", rawIntervalOptions);
+			intervalText = rawIntervalOptions;
+		}
+		if (intervalText == null) {
+			throw new IntervalExtractException("Interval text cannot be null after processing");
+		}
+		Interval interval = Interval.getIntervalByName(intervalText);
+		if (interval == null) {
+			throw new IntervalExtractException("Unknown interval: " + intervalText);
+		}
+		rawDataContainer.setInterval(interval);
+	}
+
+	private static void prepareChartSnapshotDateTimeBasedFileNameForPNGFileRenamingMode(CmcRawDataContainer rawDataContainer) {
+		String datePart = rawDataContainer.getDateTimePartForPNGFileRenamingMode();
 		String rawValorNameText = rawDataContainer.getValorNameArea().getExtractedText();
 
 		if (rawValorNameText != null) {
@@ -296,37 +390,23 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 				throw new RuntimeException("Unknown valor name text: " + rawValorNameText);
 			}
 
-			if (rawDataContainer.isToolboxFlag()) {
-				String rawIntevalLine1 = rawDataContainer.getIntervalLine1Area().getExtractedText();
-				String rawIntevalLine2 = rawDataContainer.getIntervalLine2Area().getExtractedText();
-
-				if (rawIntevalLine1 != null && rawIntevalLine2 != null) {
-					String mappedIntervalLine1 = IntervalHelper.LENGTHS_MAP.get(rawIntevalLine1);
-					if (mappedIntervalLine1 == null) {
-						throw new RuntimeException("Unknown interval line 1 text: " + rawIntevalLine1);
-					}
-					String mappedIntervalLine2 = IntervalHelper.UNITS_MAP.get(rawIntevalLine2);
-					if (mappedIntervalLine2 == null) {
-						throw new RuntimeException("Unknown interval line 2 text: " + rawIntevalLine2);
-					}
-					String extractedOrdinalNumber = rawDataContainer.getSourceFileName().substring(3, 8);
-					String newValue = mappedValorNameText + "_b" + mappedIntervalLine1 + mappedIntervalLine2 + "_" + datePart + extractedOrdinalNumber + ".png";
-					rawDataContainer.setPngFileNewName(newValue);
-				}
-			} else {
-				String rawIntervalOptions = rawDataContainer.getIntervalOptionsArea().getExtractedText();
-
-				if (rawIntervalOptions != null) {
-					String mappedIntervalOptions = IntervalHelper.LENGTH_WITH_UNIT_MAP.get(rawIntervalOptions);
-					if (mappedIntervalOptions == null) {
-						throw new RuntimeException("Unknown interval options text: " + rawIntervalOptions);
-					}
-					String extractedOrdinalNumber = rawDataContainer.getSourceFileName().substring(3, 8);
-					String newValue = mappedValorNameText + "_b" + mappedIntervalOptions + "_" + datePart + extractedOrdinalNumber + ".png";
-					rawDataContainer.setPngFileNewName(newValue);
-				}
-			}
+			String extractedOrdinalNumber = rawDataContainer.getSourceFileName().substring(4, 8);
+			String intervalFileNameComponent = rawDataContainer.getInterval().getFileNameComponent();
+			String uiVersion = rawDataContainer.getUiVersion().toString();
+			String toolboxFlagString = rawDataContainer.isToolboxFlag() ? "T" : "t";
+			String narrowFlagString = rawDataContainer.isNarrowFlag() ? "N" : "n";
+			String wideFlagString = rawDataContainer.isWideFlag() ? "W" : "w";
+			String flagsString = toolboxFlagString + narrowFlagString + wideFlagString;
+			String newValue = String.format("%s_b%s_v%s_%s_%s_%s.png", mappedValorNameText, intervalFileNameComponent, uiVersion, datePart, extractedOrdinalNumber, flagsString);
+			rawDataContainer.setSnapshotDateTimeBasedFileNameForPNGFileRenamingMode(newValue);
 		}
+	}
+
+	private static void prepareNotChartSnapshotDateTimeBasedFileNameForPNGFileRenamingMode(CmcRawDataContainer rawDataContainer) {
+		String ordinalNumber = rawDataContainer.getSourceFileName().substring(4, 8);
+		String uiVersion = rawDataContainer.getUiVersion().toString();
+		String proposedNewName = String.format("nc_v%s_%s_%s.png", uiVersion, rawDataContainer.getDateTimePartForPNGFileRenamingMode(), ordinalNumber);
+		rawDataContainer.setSnapshotDateTimeBasedFileNameForPNGFileRenamingMode(proposedNewName);
 	}
 
 	private void extractSnapshotDateTimeAreaInDataContainer(CmcRawDataContainer rawDataContainer, FrameCoords frameCoords, BufferedImage image) throws IOException {
@@ -345,7 +425,7 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 			Integer day = Integer.parseInt(splitted[2]);
 			Integer month = MonthPlMapping.MAC_MMM_TO_INT.get(splitted[3]);
 			LocalDateTime snapshotDateTime = LocalDateTime.of(defaultYearForNewFilename, month, day, localTime.getHour(), localTime.getMinute());
-			rawDataContainer.setDateTimePartForNewFileName(DateTimeFormatter.ofPattern("yyyyMMdd").format(snapshotDateTime) + "T" + DateTimeFormatter.ofPattern("HHmm").format(snapshotDateTime));
+			rawDataContainer.setDateTimePartForPNGFileRenamingMode(DateTimeFormatter.ofPattern("yyyyMMdd").format(snapshotDateTime) + "T" + DateTimeFormatter.ofPattern("HHmm").format(snapshotDateTime));
 		}
 	}
 
@@ -771,7 +851,7 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		rawDataContainer.setDescCoreMap(scanVerticallySearchingForGivenColorVariants(valuesArea, ValuesAreaColors.DESCENDING_CORE));
 		rawDataContainer.setDescExtremalMap(scanVerticallySearchingForGivenColorVariants(valuesArea, ValuesAreaColors.DESCENDING_EXTREME));
 
-		CmcPartialCandlePrescenceRegister cmcPartialCandlePrescenceRegister = new CmcPartialCandlePrescenceRegister(valuesArea.getXLength());
+		CmcPartialCandlePresenceRegister cmcPartialCandlePrescenceRegister = new CmcPartialCandlePresenceRegister(valuesArea.getXLength());
 		rawDataContainer.setPartialCandlePresenceRegister(cmcPartialCandlePrescenceRegister);
 
 		for (Map.Entry<Integer, CmcPartialCandle> entry : rawDataContainer.getAscCoreMap().entrySet()) {
@@ -789,7 +869,8 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 		log.info(cmcPartialCandlePrescenceRegister.getStats());
 
 		if (!cmcPartialCandlePrescenceRegister.isCorrect()) {
-			throw new RuntimeException("Partial candles are incorrect");
+			//tzn. istnieje przynajmniej jedna świeca dla której knot nie jest na trzonie
+			throw new PartialCandleException("Inconsistent partial candle presence register");
 		}
 
 		log.info("Partial candles extraction finished");
@@ -903,9 +984,10 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 						ValuesAreaColors.ASCENDING_CORE, ValuesAreaColors.CURRENT_LEVEL_ASCENDING_CORE);
 			}
 			case ASCENDING_EXTREME -> {
-				return scanVerticallySearchingForGivenColorWith2SupportingColors(
+				return scanVerticallySearchingForGivenColorWith4SupportingColors(
 						pixelFlattenedArea.getPixelArea(), pixelFlattenedArea.getXLength(), pixelFlattenedArea.getYLength(),
-						ValuesAreaColors.ASCENDING_EXTREME, ValuesAreaColors.GAUGE_ASCENDING_EXTREME, ValuesAreaColors.CURRENT_LEVEL_ASCENDING_EXTREME);
+						ValuesAreaColors.ASCENDING_EXTREME, ValuesAreaColors.GAUGE_ASCENDING_EXTREME, ValuesAreaColors.CURRENT_LEVEL_ASCENDING_EXTREME,
+						ValuesAreaColors.CURRENT_LEVEL_GAUGE_ASCENDING_EXTREME, ValuesAreaColors.CROSSING_GAUGE_ASCENDING_EXTREME);
 			}
 			case DESCENDING_CORE -> {
 				return scanVerticallySearchingForGivenColorWith1SupportingColors(
@@ -913,9 +995,10 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 						ValuesAreaColors.DESCENDING_CORE, ValuesAreaColors.CURRENT_LEVEL_DESCENDING_CORE);
 			}
 			case DESCENDING_EXTREME -> {
-				return scanVerticallySearchingForGivenColorWith2SupportingColors(
+				return scanVerticallySearchingForGivenColorWith4SupportingColors(
 						pixelFlattenedArea.getPixelArea(), pixelFlattenedArea.getXLength(), pixelFlattenedArea.getYLength(),
-						ValuesAreaColors.DESCENDING_EXTREME, ValuesAreaColors.GAUGE_DESCENDING_EXTREME, ValuesAreaColors.CURRENT_LEVEL_DESCENDING_EXTREME);
+						ValuesAreaColors.DESCENDING_EXTREME, ValuesAreaColors.GAUGE_DESCENDING_EXTREME, ValuesAreaColors.CURRENT_LEVEL_DESCENDING_EXTREME,
+						ValuesAreaColors.CURRENT_LEVEL_GAUGE_DESCENDING_EXTREME, ValuesAreaColors.CROSSING_GAUGE_DESCENDING_EXTREME);
 			}
 			default -> throw new IllegalArgumentException("Unsupported color variant: " + mainColor);
 		}
@@ -936,14 +1019,16 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 	 * - znacznikiem tego czy w danej kolumnie znaleziono dany kolor jest wartość max > -1
 	 * 2. na koniec tworzymy obiekt CmcPartialCandle i zapisujemy go w mapie
 	 *
-	 * Parametrami metody są 3 kolory: mainColor, firstSupportingColor, secondSupportingColor
+	 * Parametrami metody jest 5 kolorów: mainColor, firstSupportingColor, secondSupportingColor, thirdSupportingColor, fourthSupportingColor
 	 * mainColor - to główny kolor, który ma być szukany. Tworzony obiekt CmcPartialCandle będzie scharakteryzowany tym kolorem.
 	 * firstSupportingColor - to kolor pomocniczy, którego wystąpienie jest traktowane tak jakby wystąpił ten główny.
 	 * secondSupportingColor - analogicznie jak firstSupportingColor, ale dla drugiego koloru pomocniczego.
+	 * thirdSupportingColor - analogicznie jak firstSupportingColor, ale dla trzeciego koloru pomocniczego.
+	 * fourthSupportingColor - analogicznie jak firstSupportingColor, ale dla czwartego koloru pomocniczego.
 	 *
-	 * Istnienie podziału na 3 kolory wynika z tego, że kolor knota świecy może być przesłonięty białym kolorem wartości bieżącej na wykresie
+	 * Istnienie podziału na 5 kolorów wynika z tego, że kolor knota świecy może być przesłonięty białym kolorem wartości bieżącej na wykresie
 	 * lub może mieć spod spodu przebitkę prowadnicy poziomej lub pionowej - co zmienia jego kolor, choć na szczęście dalej taki kolor jest
-	 * jednoznaczny - tzn. przykładowo jeżeli mamy świecę wznoszącą i kolor konkretnego piksela jej knota jest zmodyfikowany przez kolor prowadnicy
+	 * jednoznaczny - tzn. przykładowo: jeżeli mamy świecę wznoszącą i kolor konkretnego piksela jej knota jest zmodyfikowany przez kolor prowadnicy
 	 * - to i tak jednoznacznie po tym kolorze można rozpoznać, że jest to knot świecy wznoszącej.
 	 *
 	 * @param pixelArray an 1D array of pixel values representing a 2D image in row-major order
@@ -952,10 +1037,18 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 	 * @param mainColor the color value to compare each pixel against
 	 * @param firstSupportingColor the color value to compare each pixel against
 	 * @param secondSupportingColor the color value to compare each pixel against
+	 * @param thirdSupportingColor the color value to compare each pixel against
+	 * @param fourthSupportingColor the color value to compare each pixel against
 	 * @return an integer array representing the count of pixels in each column that differ
 	 *         from the given color
 	 */
-	private static Map<Integer, CmcPartialCandle> scanVerticallySearchingForGivenColorWith2SupportingColors(int[] pixelArray, int arrWidth, int arrHeight, ValuesAreaColors mainColor, ValuesAreaColors firstSupportingColor, ValuesAreaColors secondSupportingColor) {
+	private static Map<Integer, CmcPartialCandle> scanVerticallySearchingForGivenColorWith4SupportingColors(
+			int[] pixelArray, int arrWidth, int arrHeight,
+			ValuesAreaColors mainColor,
+			ValuesAreaColors firstSupportingColor,
+			ValuesAreaColors secondSupportingColor,
+			ValuesAreaColors thirdSupportingColor,
+			ValuesAreaColors fourthSupportingColor) {
 		CmcPartialCandle cpc = null;
 		Map<Integer, CmcPartialCandle> result = new HashMap<>();
 		for (int i = 0; i < arrWidth; i++) { //idzie po X
@@ -966,16 +1059,29 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 				if (pixelColor == mainColor.getColor()) {
 					max = j > max ? j : max;
 					min = j < min ? j : min;
-				} else {
-					if (pixelColor == firstSupportingColor.getColor()) {
-						max = j > max ? j : max;
-						min = j < min ? j : min;
-					} else if (pixelColor == secondSupportingColor.getColor()) {
-						max = j > max ? j : max;
-						min = j < min ? j : min;
-					}
+					continue;
+				}
+				if (pixelColor == firstSupportingColor.getColor()) {
+					max = j > max ? j : max;
+					min = j < min ? j : min;
+					continue;
+				}
+				if (pixelColor == secondSupportingColor.getColor()) {
+					max = j > max ? j : max;
+					min = j < min ? j : min;
+					continue;
+				}
+				if (pixelColor == thirdSupportingColor.getColor()) {
+					max = j > max ? j : max;
+					min = j < min ? j : min;
+					continue;
+				}
+				if (pixelColor == fourthSupportingColor.getColor()) {
+					max = j > max ? j : max;
+					min = j < min ? j : min;
 				}
 			}
+			// na zakończenie - utworzenie reprezentującego obiektu
 			if (max > -1) {
 				cpc = new CmcPartialCandle(i, min, max, mainColor);
 				result.put(i, cpc);
@@ -997,7 +1103,7 @@ public class CandleCmcBufferedImageProcessingService implements CmcBufferedImage
 	 * Z tego widać, że dla trzonu możliwe są tylko 2 warianty koloru - więc i metoda przyjmuje tylko 2 kolory.
 	 *
 	 * Szerszy opis idei realizowanej przez tą metodę jest dostarczony w opisie wspomnianego drugiego wariantu tej metody.
-	 * @see #scanVerticallySearchingForGivenColorWith2SupportingColors(int[], int, int, ValuesAreaColors, ValuesAreaColors, ValuesAreaColors)
+	 * @see #scanVerticallySearchingForGivenColorWith4SupportingColors(int[], int, int, ValuesAreaColors, ValuesAreaColors, ValuesAreaColors)
 	 * @param pixelArray
 	 * @param arrWidth
 	 * @param arrHeight
